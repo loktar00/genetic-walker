@@ -1,0 +1,23 @@
+{
+  "name": "geneticmovement",
+  "version": "1.0.0",
+  "homepage": "",
+  "authors": [
+    "Jason Brown <loktar69@hotmail.com>"
+  ],
+  "description": "Lets see if we can teach some sticks to walk",
+  "main": "app.js",
+  "keywords": [
+    "genetic",
+    "algorithm",
+    "walk"
+  ],
+  "license": "GPL",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}

@@ -1,0 +1,34 @@
+body {
+  background: #000;
+}
+.creator {
+  width: 550px;
+  margin-bottom: 50px;
+}
+.controls {
+  float: right;
+}
+ul {
+  float: left;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+canvas {
+  background: #fff;
+  display: block;
+}
+.simulation-canvas {
+  background: #000;
+  border: 1px solid #fff;
+}
+.cf:before,
+.cf:after {
+  content: " ";
+  /* 1 */
+  display: table;
+  /* 2 */
+}
+.cf:after {
+  clear: both;
+}
