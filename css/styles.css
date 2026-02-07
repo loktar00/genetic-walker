@@ -1,4 +1,16 @@
-body{background: #000;}
+body{
+	background: #000;
+	margin: 0;
+	padding: 0;
+	font-family: 'Raleway', sans-serif;
+	color: #fff;
+}
+
+main {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
 
 .creator{
 	width:620px;
@@ -29,16 +41,152 @@ canvas{
 }
 .simulation-canvas{
 	background: #000;
-	border:1px solid #fff;
+	border:1px solid #333;
+	cursor: pointer;
 }
 
 
 .cf:before,
 .cf:after {
-    content: " "; /* 1 */
-    display: table; /* 2 */
+    content: " ";
+    display: table;
 }
 
 .cf:after {
     clear: both;
+}
+
+/* Config Screen */
+#config-screen {
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.9);
+	justify-content: center;
+	align-items: center;
+	z-index: 100;
+}
+
+.config-panel {
+	background: #1a1a2e;
+	border: 1px solid #444;
+	border-radius: 8px;
+	padding: 30px 40px;
+	min-width: 320px;
+}
+
+.config-panel h2 {
+	margin: 0 0 20px 0;
+	text-align: center;
+	color: #0f0;
+	font-family: 'Roboto Slab', serif;
+	font-size: 24px;
+}
+
+.config-fields {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-bottom: 20px;
+}
+
+.config-fields label {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 16px;
+}
+
+.config-fields label span {
+	font-size: 14px;
+	color: #ccc;
+}
+
+.config-fields select,
+.config-fields input[type="number"],
+.config-fields input[type="file"] {
+	background: #0d0d1a;
+	border: 1px solid #555;
+	color: #0f0;
+	padding: 4px 8px;
+	width: 100px;
+	font-family: monospace;
+	font-size: 14px;
+	border-radius: 3px;
+}
+
+.config-fields input[type="file"] {
+	width: auto;
+	color: #aaa;
+	font-size: 12px;
+}
+
+.slider-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.slider-group input[type="range"] {
+	width: 80px;
+	accent-color: #0f0;
+}
+
+.slider-group span {
+	font-family: monospace;
+	font-size: 13px;
+	color: #0f0;
+	min-width: 30px;
+}
+
+.config-buttons {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+}
+
+.config-buttons button {
+	background: #0a4a0a;
+	color: #0f0;
+	border: 1px solid #0f0;
+	padding: 8px 20px;
+	font-size: 14px;
+	font-family: 'Raleway', sans-serif;
+	cursor: pointer;
+	border-radius: 4px;
+	transition: background 0.2s;
+}
+
+.config-buttons button:hover {
+	background: #0f6a0f;
+}
+
+/* Simulation controls bar */
+.sim-controls {
+	display: flex;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.sim-controls button {
+	background: #1a1a2e;
+	color: #0f0;
+	border: 1px solid #444;
+	padding: 4px 12px;
+	font-size: 12px;
+	font-family: monospace;
+	cursor: pointer;
+	border-radius: 3px;
+}
+
+.sim-controls button:hover {
+	background: #2a2a4e;
+}
+
+.sim-controls button.active {
+	background: #0a4a0a;
+	border-color: #0f0;
 }
