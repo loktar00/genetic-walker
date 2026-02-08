@@ -110,11 +110,18 @@ export default class Terrain {
         this.segmentWidth = 20;
         this.baseGround = 400;
         this._cache = new Map();
+        this._maxCacheSize = 5000;
     }
 
     _heightAtSegment(ix) {
         if (this._cache.has(ix)) {
             return this._cache.get(ix);
+        }
+
+        // Evict entire cache when it gets too large — terrain is deterministic
+        // so everything can be cheaply recomputed on demand
+        if (this._cache.size >= this._maxCacheSize) {
+            this._cache.clear();
         }
 
         const x = ix * this.segmentWidth;
