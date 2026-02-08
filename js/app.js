@@ -41,7 +41,7 @@ document.querySelector('main').appendChild(controlsBar);
 
 // Handle window resize
 window.addEventListener('resize', () => {
-    World.resize(window.innerWidth, window.innerHeight -100);
+    World.resize(window.innerWidth, window.innerHeight - 100);
 });
 
 // Show config screen
@@ -49,7 +49,7 @@ const configScreen = new ConfigScreen(handleStart);
 
 function handleStart({ mode, config, savedState }) {
     // Setup terrain
-    terrain = new Terrain(config.terrainSeed);
+    terrain = new Terrain(config.terrainSeed, config.worldType);
     World.terrain = terrain;
     World.cameraX = 0;
 

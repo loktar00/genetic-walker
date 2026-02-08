@@ -1,13 +1,13 @@
 // Genome schema, random creation, clone, validate, serialize
 
 export const LIMITS = {
-    bodyWidth:  { min: 20, max: 300 },
-    bodyHeight: { min: 20, max: 300 },
+    bodyWidth:  { min: 20, max: 200 },
+    bodyHeight: { min: 20, max: 200 },
     pointRx:    { min: 0, max: 1 },
     pointRy:    { min: 0, max: 1 },
     stiffness:  { min: 0.5, max: 5 },
-    extensionFactor:   { min: 0.05, max: 0.8 },
-    contractionFactor: { min: 0.05, max: 0.8 },
+    extensionFactor:   { min: 0.05, max: 0.5 },
+    contractionFactor: { min: 0.05, max: 0.5 },
     frequency:  { min: 0.2, max: 5.0 },
     phase:      { min: 0, max: Math.PI * 2 },
     strength:   { min: 0.005, max: 0.1 },
@@ -30,15 +30,15 @@ export function createRandomGenome(rng, rawNumPoints, rawNumMuscles) {
     if (shapeRoll < 0.25) {
         // Tall/narrow — leggy potential
         bodyWidth = rng.range(30, 100);
-        bodyHeight = rng.range(100, 250);
+        bodyHeight = rng.range(100, 200);
     } else if (shapeRoll < 0.50) {
         // Wide/flat — crawler potential
-        bodyWidth = rng.range(120, 280);
+        bodyWidth = rng.range(120, 200);
         bodyHeight = rng.range(30, 80);
     } else {
         // Standard — slightly expanded range
-        bodyWidth = rng.range(50, 200);
-        bodyHeight = rng.range(40, 180);
+        bodyWidth = rng.range(50, 180);
+        bodyHeight = rng.range(40, 160);
     }
 
     // Regional point placement bias
@@ -120,8 +120,8 @@ export function createRandomGenome(rng, rawNumPoints, rawNumMuscles) {
         if (!exists) {
             muscles.push({
                 a, b,
-                extensionFactor: rng.range(0.1, 0.5),
-                contractionFactor: rng.range(0.1, 0.5),
+                extensionFactor: rng.range(0.1, 0.35),
+                contractionFactor: rng.range(0.1, 0.35),
                 frequency: rng.range(0.5, 3.0),
                 phase: rng.range(0, Math.PI * 2),
                 strength: rng.range(0.01, 0.05)
@@ -195,9 +195,10 @@ export function validateGenome(genome) {
         c.stiffness = clamp(c.stiffness, L.stiffness.min, L.stiffness.max);
     }
 
-    // Ensure connectivity: at minimum a chain
-    if (genome.constraints.length < L.minConstraints) {
-        for (let i = 1; i < numPts && genome.constraints.length < L.minConstraints; i++) {
+    // Ensure connectivity: at minimum a full chain (numPts - 1 constraints)
+    const minCons = Math.max(L.minConstraints, numPts - 1);
+    if (genome.constraints.length < minCons) {
+        for (let i = 1; i < numPts && genome.constraints.length < minCons; i++) {
             const exists = genome.constraints.some(c =>
                 (c.a === i - 1 && c.b === i) || (c.a === i && c.b === i - 1)
             );

@@ -111,7 +111,7 @@ export function mutate(genome, rng, rawStructuralRate, parametricBoost) {
     }
 
     // Remove constraint (check doesn't orphan a point)
-    if (rng.random() < 0.03 * structuralRate && g.constraints.length > L.minConstraints) {
+    if (rng.random() < 0.03 * structuralRate && g.constraints.length > Math.max(L.minConstraints, g.points.length - 1)) {
         const idx = rng.int(0, g.constraints.length);
         const candidate = g.constraints[idx];
         // Check both points still have at least one other constraint
@@ -137,8 +137,8 @@ export function mutate(genome, rng, rawStructuralRate, parametricBoost) {
         if (!exists) {
             g.muscles.push({
                 a, b,
-                extensionFactor: rng.range(0.1, 0.5),
-                contractionFactor: rng.range(0.1, 0.5),
+                extensionFactor: rng.range(0.1, 0.35),
+                contractionFactor: rng.range(0.1, 0.35),
                 frequency: rng.range(0.5, 3.0),
                 phase: rng.range(0, Math.PI * 2),
                 strength: rng.range(0.01, 0.05)

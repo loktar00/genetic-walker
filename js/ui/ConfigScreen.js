@@ -10,6 +10,7 @@ const DEFAULTS = {
     structuralMutationRate: 1,  // multiplier: 0=off, 1=normal, 5=aggressive
     startingPoints: 5,
     startingMuscles: 3,
+    worldType: 'hills',
     terrainSeed: Math.floor(Math.random() * 100000)
 };
 
@@ -75,6 +76,15 @@ export default class ConfigScreen {
                         <input type="number" id="cfg-muscles" value="${d.startingMuscles}" min="1" max="10">
                     </label>
                     <label>
+                        <span>World Type</span>
+                        <select id="cfg-world-type">
+                            <option value="hills" ${d.worldType === 'hills' ? 'selected' : ''}>Rolling Hills</option>
+                            <option value="mountains" ${d.worldType === 'mountains' ? 'selected' : ''}>Mountains</option>
+                            <option value="rugged" ${d.worldType === 'rugged' ? 'selected' : ''}>Rugged</option>
+                            <option value="flat" ${d.worldType === 'flat' ? 'selected' : ''}>Flat</option>
+                        </select>
+                    </label>
+                    <label>
                         <span>Terrain Seed</span>
                         <input type="number" id="cfg-seed" value="${d.terrainSeed}">
                     </label>
@@ -133,6 +143,7 @@ export default class ConfigScreen {
             structuralMutationRate: parseFloat(document.getElementById('cfg-structural').value),
             startingPoints: parseInt(document.getElementById('cfg-points').value, 10) || DEFAULTS.startingPoints,
             startingMuscles: parseInt(document.getElementById('cfg-muscles').value, 10) || DEFAULTS.startingMuscles,
+            worldType: document.getElementById('cfg-world-type').value || DEFAULTS.worldType,
             terrainSeed: parseInt(document.getElementById('cfg-seed').value, 10) || DEFAULTS.terrainSeed
         };
     }

@@ -65,10 +65,25 @@ export default class HUD {
         bottomText += `  |  All-time: ${Math.round(allTimeBest)}px  |  Mutation rate: ${baseRate}x`;
         if (mutBoost > 1) {bottomText += `→${effectiveRate}x`;}
         if (stag > 0) {bottomText += `  |  Stagnation: ${stag}`;}
+        if (stag > 0 && stag % 50 === 0) {bottomText += '  EXTINCTION';}
         ctx.fillText(bottomText, 8, World.bounds.height - 30);
 
         // Bottom-right: Mini fitness history bar chart
         this._renderHistoryChart(ctx, w - 160, World.bounds.height - 45, 150, 35);
+
+        // Extinction event banner
+        if (stag > 0 && stag % 50 === 0) {
+            ctx.save();
+            ctx.font = 'bold 36px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#f00';
+            ctx.globalAlpha = 0.9;
+            ctx.fillText('EXTINCTION EVENT', w / 2, 80);
+            ctx.font = '16px monospace';
+            ctx.fillStyle = '#ff0';
+            ctx.fillText(`Stagnation gen ${stag} — mass replacement`, w / 2, 108);
+            ctx.restore();
+        }
 
         // Center: stall countdowns for active creatures
         this._renderStallCountdowns(ctx);

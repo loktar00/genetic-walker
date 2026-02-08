@@ -85,7 +85,7 @@ export default class VerletBody {
             (pMassA.x - pMassB.x) * (pMassA.x - pMassB.x) +
             (pMassA.y - pMassB.y) * (pMassA.y - pMassB.y)
         );
-        const maxLen = restLength * (1 + extensionFactor);
+        const maxLen = Math.min(restLength * (1 + extensionFactor), 250);
         const minLen = Math.max(restLength * (1 - contractionFactor), 5);
 
         this.pointMuscles.push({
@@ -158,7 +158,7 @@ export default class VerletBody {
             point.y += dy;
 
             // NaN guard — freeze degenerate bodies
-            if (!isFinite(point.x) || !isFinite(point.y)) {
+            if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) {
                 point.x = point.ox;
                 point.y = point.oy;
                 this.frozen = true;
@@ -192,15 +192,6 @@ export default class VerletBody {
                     }
                 }
 
-                // Water physics: drag + buoyancy
-                if (point.y > terrain.waterLevel) {
-                    // Buoyancy — upward force countering 65% of gravity
-                    point.y -= gravity * 0.65 * dtSq;
-
-                    // Drag — reduce velocity to 85% each step
-                    point.ox += (point.x - point.ox) * 0.15;
-                    point.oy += (point.y - point.oy) * 0.15;
-                }
             }
 
             // Left boundary
@@ -298,7 +289,7 @@ export default class VerletBody {
 
     resolveConstraintTerrain() {
         const terrain = World.terrain;
-        if (!terrain) return;
+        if (!terrain) {return;}
         const allConstraints = this.pointConstraints;
         const allMuscles = this.pointMuscles;
 
@@ -317,7 +308,8 @@ export default class VerletBody {
                     const sx = p1.x + (p2.x - p1.x) * t;
                     const sy = p1.y + (p2.y - p1.y) * t;
 
-                    if (sx < 0) continue;
+                    // eslint-disable-next-line no-continue
+                    if (sx < 0) {continue;}
 
                     const terrainY = terrain.getHeightAtX(sx);
                     if (sy > terrainY) {

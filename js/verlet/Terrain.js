@@ -17,17 +17,105 @@ function noise(x, wavelength, seed) {
     return a + (b - a) * smooth;
 }
 
+// World type layer parameter tables
+// Each returns { wavelength, amplitude } given difficulty level
+const WORLD_PROFILES = {
+    hills: {
+        base(diff) {
+            return { wl: 2000 + diff * 300, amp: 200 + diff * 50 };
+        },
+        mountains(diff) {
+            if (diff <= 0.5) {return null;}
+            const strength = Math.min((diff - 0.5) / 1.5, 1.0);
+            return { wl: 3000 + diff * 250, amp: (300 + diff * 60) * strength };
+        },
+        valleys(diff) {
+            return { wl: 1500 + diff * 200, amp: 100 + diff * 60 };
+        },
+        detail(diff) {
+            return { wl: Math.max(80, 300 - diff * 15), amp: 10 + diff * 5 };
+        },
+        roughness(diff) {
+            if (diff <= 2) {return null;}
+            const strength = Math.min((diff - 2) / 2, 1.0);
+            return { wl: Math.max(25, 60 - diff * 3), amp: (25 + diff * 8) * strength };
+        }
+    },
+    mountains: {
+        base(diff) {
+            return { wl: 2500 + diff * 200, amp: 300 + diff * 80 };
+        },
+        mountains(diff) {
+            if (diff <= 0.3) {
+                return null;
+            }
+            const strength = Math.min((diff - 0.3) / 1.2, 1.0);
+            return { wl: 3500 + diff * 200, amp: (500 + diff * 100) * strength };
+        },
+        valleys(diff) {
+            return { wl: 1800 + diff * 150, amp: 150 + diff * 80 };
+        },
+        detail(diff) {
+            return { wl: Math.max(80, 250 - diff * 12), amp: 12 + diff * 5 };
+        },
+        roughness(diff) {
+            if (diff <= 1.5) {return null;}
+            const strength = Math.min((diff - 1.5) / 2, 1.0);
+            return { wl: Math.max(25, 50 - diff * 2), amp: (30 + diff * 10) * strength };
+        }
+    },
+    rugged: {
+        base(diff) {
+            return { wl: 1200 + diff * 150, amp: 180 + diff * 40 };
+        },
+        mountains(diff) {
+            if (diff <= 0.3) {return null;}
+            const strength = Math.min((diff - 0.3) / 1.2, 1.0);
+            return { wl: 2000 + diff * 200, amp: (250 + diff * 50) * strength };
+        },
+        valleys(diff) {
+            return { wl: 800 + diff * 100, amp: 80 + diff * 50 };
+        },
+        detail(diff) {
+            return { wl: Math.max(40, 150 - diff * 10), amp: 20 + diff * 8 };
+        },
+        roughness(diff) {
+            // Always active for rugged
+            return { wl: Math.max(20, 40 - diff * 2), amp: 15 + diff * 10 };
+        }
+    },
+    flat: {
+        base(diff) {
+            return { wl: 3000 + diff * 500, amp: 60 + diff * 15 };
+        },
+        mountains() {
+            return null;
+        },
+        valleys(diff) {
+            return { wl: 2500 + diff * 300, amp: 30 + diff * 10 };
+        },
+        detail(diff) {
+            return { wl: 400, amp: 5 + diff * 1.5 };
+        },
+        roughness() {
+            return null;
+        }
+    }
+};
+
 export default class Terrain {
-    constructor(seed) {
+    constructor(seed, worldType) {
         this.seed = seed || 42;
+        this.worldType = worldType || 'hills';
         this.segmentWidth = 20;
         this.baseGround = 400;
-        this.waterLevel = 440;
         this._cache = new Map();
     }
 
     _heightAtSegment(ix) {
-        if (this._cache.has(ix)) return this._cache.get(ix);
+        if (this._cache.has(ix)) {
+            return this._cache.get(ix);
+        }
 
         const x = ix * this.segmentWidth;
         const seed = this.seed;
@@ -39,59 +127,40 @@ export default class Terrain {
             return baseGround;
         }
 
-        // Progressive difficulty: ramps up over distance, no cap
-        const difficulty = Math.min(x / 3000, 8.0);
+        // Progressive difficulty: ramps up over distance
+        const diff = Math.min(x / 1500, 8.0);
 
-        // Layer 1: Mega terrain — broad elevation changes
-        const amp1 = 200 + difficulty * 100;
-        const wl1 = 600 - difficulty * 40;
-
-        // Layer 2: Major features — mountains and valleys
-        const amp2 = 100 + difficulty * 60;
-        const wl2 = 200 - difficulty * 15;
-
-        // Layer 3: Minor features — hills and dips
-        const amp3 = 40 + difficulty * 25;
-        const wl3 = 70 - difficulty * 5;
-
-        // Layer 4: Surface detail
-        const amp4 = 15 + difficulty * 10;
-        const wl4 = 30 - difficulty * 2;
+        const profile = WORLD_PROFILES[this.worldType] || WORLD_PROFILES.hills;
 
         let y = baseGround;
-        y += (noise(x, Math.max(wl1, 80), seed * 3 + 1) - 0.5) * amp1;
-        y += (noise(x, Math.max(wl2, 30), seed * 7 + 2) - 0.5) * amp2;
-        y += (noise(x, Math.max(wl3, 15), seed * 13 + 3) - 0.5) * amp3;
-        y += (noise(x, Math.max(wl4, 8), seed * 19 + 4) - 0.5) * amp4;
 
-        // Layer 5: Mountains — very broad, very high amplitude (kicks in at distance)
-        if (difficulty > 1.0) {
-            const mountainStrength = Math.min((difficulty - 1.0) / 2.0, 1.0);
-            const amp5 = 400 * mountainStrength;
-            const wl5 = 1000 - difficulty * 60;
-            y += (noise(x, Math.max(wl5, 400), seed * 23 + 5) - 0.5) * amp5;
+        // Layer 1: Base undulation
+        const base = profile.base(diff);
+        y += (noise(x, base.wl, seed * 3 + 1) - 0.5) * base.amp;
+
+        // Layer 2: Mountains
+        const mtn = profile.mountains(diff);
+        if (mtn) {
+            y += (noise(x, mtn.wl, seed * 7 + 2) - 0.5) * mtn.amp;
         }
 
-        // Layer 6: Mega ridges and basins at extreme distance
-        if (difficulty > 2.5) {
-            const megaStrength = Math.min((difficulty - 2.5) / 2.0, 1.0);
-            const amp6 = 300 * megaStrength;
-            y += (noise(x, 2000, seed * 29 + 6) - 0.5) * amp6;
+        // Layer 3: Valleys
+        const val = profile.valleys(diff);
+        y += (noise(x, val.wl, seed * 13 + 3) - 0.5) * val.amp;
+
+        // Layer 4: Surface detail
+        const det = profile.detail(diff);
+        y += (noise(x, det.wl, seed * 19 + 4) - 0.5) * det.amp;
+
+        // Layer 5: Roughness (replaces spikes — shorter wavelength noise at distance)
+        const rough = profile.roughness(diff);
+        if (rough) {
+            y += (noise(x, rough.wl, seed * 31 + 5) - 0.5) * rough.amp;
         }
 
-        // Cliff generation in hard terrain
-        if (difficulty > 2.0) {
-            const cliffRoll = hash(ix, seed * 31 + 7);
-            const cliffChance = 0.015 * Math.min((difficulty - 2.0) / 2.0, 1.0);
-            if (cliffRoll < cliffChance) {
-                const cliffHeight = (hash(ix, seed * 37 + 8) - 0.5) * 2;
-                y += cliffHeight * (80 + 120 * (difficulty / 5.0));
-            }
-        }
-
-        // Flat starting zone: blend toward baseGround for first 200px
-        if (x < 200) {
-            const blend = x / 200;
+        // Flat starting zone: blend toward baseGround for first 400px
+        if (x < 400) {
+            const blend = x / 400;
             y = baseGround + (y - baseGround) * blend * blend;
         }
 
@@ -150,37 +219,5 @@ export default class Terrain {
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Draw water
-        this._renderWater(ctx, camX, camY, viewWidth, viewHeight);
-    }
-
-    _renderWater(ctx, camX, camY, viewWidth, viewHeight) {
-        const wl = this.waterLevel;
-        const bottomY = camY + viewHeight;
-
-        // Water level below viewport — nothing to draw
-        if (wl > bottomY) return;
-
-        const left = camX;
-        const right = camX + viewWidth;
-
-        if (wl < camY) {
-            // Water level above viewport — everything visible is underwater
-            ctx.fillStyle = 'rgba(30, 100, 180, 0.25)';
-            ctx.fillRect(left, camY, viewWidth, viewHeight);
-            return;
-        }
-
-        // Water fill below water level
-        ctx.fillStyle = 'rgba(30, 100, 180, 0.25)';
-        ctx.fillRect(left, wl, viewWidth, bottomY - wl);
-
-        // Water surface line
-        ctx.strokeStyle = 'rgba(60, 160, 255, 0.7)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(left, wl);
-        ctx.lineTo(right, wl);
-        ctx.stroke();
     }
 }

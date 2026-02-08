@@ -65,7 +65,10 @@ export default class SimulationManager {
                 lastProgressTime: 0,
                 stallCountdown: null,
                 finished: false,
-                fitness: 0
+                fitness: 0,
+                // Minimum speed tracking
+                lastSpeedCheckTime: 0,
+                lastSpeedCheckX: com.x
             });
         }
     }
@@ -105,6 +108,23 @@ export default class SimulationManager {
             const timeSinceProgress = this.elapsedTime - state.lastProgressTime;
             const isStalled = timeSinceProgress > this.config.stallTimeout;
 
+            // Minimum speed check: every 2 seconds, measure forward speed.
+            // If below 5 px/s, finish immediately — the 2s window is the grace period.
+            const speedCheckInterval = 2;
+            const minSpeed = 5; // px/s
+            const timeSinceSpeedCheck = this.elapsedTime - state.lastSpeedCheckTime;
+            if (timeSinceSpeedCheck >= speedCheckInterval) {
+                const dx = state.currentX - state.lastSpeedCheckX;
+                const speed = dx / timeSinceSpeedCheck;
+                state.lastSpeedCheckTime = this.elapsedTime;
+                state.lastSpeedCheckX = state.currentX;
+                if (speed < minSpeed && this.elapsedTime > speedCheckInterval) {
+                    this._finishCreature(i);
+                    // eslint-disable-next-line no-continue
+                    continue;
+                }
+            }
+
             if (isStalled || movedBackward) {
                 if (state.stallCountdown === null) {
                     state.stallCountdown = 3;
@@ -141,7 +161,7 @@ export default class SimulationManager {
         const energy = body.totalEnergy;
         const weight = this.config.energyWeight || 0;
         let fitness = distance / (1 + energy * weight);
-        if (!isFinite(fitness)) fitness = 0;
+        if (!Number.isFinite(fitness)) {fitness = 0;}
         state.fitness = fitness;
         state.distance = distance;
         state.energy = energy;

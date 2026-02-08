@@ -33,6 +33,22 @@ export function nextGeneration(scoredPopulation, populationSize, rng, structural
 
     const newGenomes = [];
 
+    // Extinction event: every 50 stagnation gens, keep top 2, replace rest with fresh creatures
+    if (stagnationGen > 0 && stagnationGen % 50 === 0) {
+        if (sorted.length >= 1) {
+            newGenomes.push(cloneGenome(sorted[0].genome));
+        }
+        if (sorted.length >= 2) {
+            newGenomes.push(cloneGenome(sorted[1].genome));
+        }
+        while (newGenomes.length < populationSize) {
+            const numPts = rng.int(3, 10);
+            const numMus = rng.int(1, Math.max(2, numPts - 1));
+            newGenomes.push(createRandomGenome(rng, numPts, numMus));
+        }
+        return newGenomes;
+    }
+
     // Elitism: #1 passes unchanged, #2 gets mutated (can break through barriers)
     if (sorted.length >= 1) {
         newGenomes.push(cloneGenome(sorted[0].genome));
