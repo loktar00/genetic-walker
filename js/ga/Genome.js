@@ -12,12 +12,19 @@ export const LIMITS = {
     phase:      { min: 0, max: Math.PI * 2 },
     strength:   { min: 0.005, max: 0.1 },
     minPoints:  3,
+    maxPoints:  10,
     minConstraints: 2,
     minMuscles: 1
 };
 
 function clamp(val, min, max) {
     return Math.max(min, Math.min(max, val));
+}
+
+export function randomCreatureSize(rng) {
+    const numPts = rng.int(LIMITS.minPoints, LIMITS.maxPoints);
+    const numMus = rng.int(LIMITS.minMuscles, Math.max(2, numPts - 1));
+    return { numPts, numMus };
 }
 
 export function createRandomGenome(rng, rawNumPoints, rawNumMuscles) {

@@ -8,8 +8,6 @@ const DEFAULTS = {
     backwardThreshold: 30,  // px behind maxX to trigger backward stall
     energyWeight: 0,            // 0=disabled, higher=more penalty for energy use
     structuralMutationRate: 1,  // multiplier: 0=off, 1=normal, 5=aggressive
-    startingPoints: 5,
-    startingMuscles: 3,
     worldType: 'hills',
     terrainSeed: Math.floor(Math.random() * 100000)
 };
@@ -66,14 +64,6 @@ export default class ConfigScreen {
                             <input type="range" id="cfg-structural" value="${d.structuralMutationRate}" min="0" max="5" step="0.5">
                             <span id="cfg-structural-val">${d.structuralMutationRate}x</span>
                         </div>
-                    </label>
-                    <label>
-                        <span>Starting Points</span>
-                        <input type="number" id="cfg-points" value="${d.startingPoints}" min="3" max="15">
-                    </label>
-                    <label>
-                        <span>Starting Muscles</span>
-                        <input type="number" id="cfg-muscles" value="${d.startingMuscles}" min="1" max="10">
                     </label>
                     <label>
                         <span>World Type</span>
@@ -141,8 +131,6 @@ export default class ConfigScreen {
             backwardThreshold: parseInt(document.getElementById('cfg-backward').value, 10) || DEFAULTS.backwardThreshold,
             energyWeight: parseFloat(document.getElementById('cfg-energy').value),
             structuralMutationRate: parseFloat(document.getElementById('cfg-structural').value),
-            startingPoints: parseInt(document.getElementById('cfg-points').value, 10) || DEFAULTS.startingPoints,
-            startingMuscles: parseInt(document.getElementById('cfg-muscles').value, 10) || DEFAULTS.startingMuscles,
             worldType: document.getElementById('cfg-world-type').value || DEFAULTS.worldType,
             terrainSeed: parseInt(document.getElementById('cfg-seed').value, 10) || DEFAULTS.terrainSeed
         };

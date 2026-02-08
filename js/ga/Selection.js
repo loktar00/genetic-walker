@@ -1,4 +1,4 @@
-import { cloneGenome, createRandomGenome } from './Genome.js';
+import { cloneGenome, createRandomGenome, randomCreatureSize } from './Genome.js';
 import { crossover } from './Crossover.js';
 import { mutate } from './Mutation.js';
 
@@ -42,8 +42,7 @@ export function nextGeneration(scoredPopulation, populationSize, rng, structural
             newGenomes.push(cloneGenome(sorted[1].genome));
         }
         while (newGenomes.length < populationSize) {
-            const numPts = rng.int(3, 10);
-            const numMus = rng.int(1, Math.max(2, numPts - 1));
+            const { numPts, numMus } = randomCreatureSize(rng);
             newGenomes.push(createRandomGenome(rng, numPts, numMus));
         }
         return newGenomes;

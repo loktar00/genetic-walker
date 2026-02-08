@@ -1,5 +1,5 @@
 import { createRNG } from '../utils/random.js';
-import { createRandomGenome, cloneGenome } from './Genome.js';
+import { createRandomGenome, randomCreatureSize, cloneGenome } from './Genome.js';
 import { nextGeneration } from './Selection.js';
 import VerletBody from '../verlet/Verlet.js';
 import { saveState } from '../ui/Persistence.js';
@@ -24,9 +24,8 @@ export default class SimulationManager {
     initNewPopulation() {
         this.genomes = [];
         for (let i = 0; i < this.config.populationSize; i++) {
-            this.genomes.push(
-                createRandomGenome(this.rng, this.config.startingPoints, this.config.startingMuscles)
-            );
+            const { numPts, numMus } = randomCreatureSize(this.rng);
+            this.genomes.push(createRandomGenome(this.rng, numPts, numMus));
         }
         this.startGeneration(this.genomes);
     }
@@ -109,9 +108,9 @@ export default class SimulationManager {
             const isStalled = timeSinceProgress > this.config.stallTimeout;
 
             // Minimum speed check: every 2 seconds, measure forward speed.
-            // If below 5 px/s, finish immediately — the 2s window is the grace period.
+            // If below 10 px/s, finish immediately — the 2s window is the grace period.
             const speedCheckInterval = 2;
-            const minSpeed = 5; // px/s
+            const minSpeed = 10; // px/s
             const timeSinceSpeedCheck = this.elapsedTime - state.lastSpeedCheckTime;
             if (timeSinceSpeedCheck >= speedCheckInterval) {
                 const dx = state.currentX - state.lastSpeedCheckX;
