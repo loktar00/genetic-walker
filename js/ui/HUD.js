@@ -48,10 +48,8 @@ export default class HUD {
         const allTimeBest = sim.bestFitness;
         const stag = sim.stagnationGen;
         const baseRate = sim.config.structuralMutationRate;
-        let mutBoost = 1;
-        if (stag >= 5) {mutBoost = 2;}
-        if (stag >= 10) {mutBoost = 3;}
-        const effectiveRate = baseRate * mutBoost;
+        const mutBoost = 1 + Math.min(stag * 0.2, 8);
+        const effectiveRate = (baseRate * mutBoost).toFixed(1);
 
         ctx.textAlign = 'left';
         ctx.fillStyle = stag >= 5 ? '#f55' : '#ff0';
@@ -64,9 +62,9 @@ export default class HUD {
                 bottomText += ` (${eff.toFixed(1)} eff)`;
             }
         }
-        bottomText += `  |  All-time: ${Math.round(allTimeBest)}px  |  Mut: ${baseRate}x`;
+        bottomText += `  |  All-time: ${Math.round(allTimeBest)}px  |  Mutation rate: ${baseRate}x`;
         if (mutBoost > 1) {bottomText += `→${effectiveRate}x`;}
-        if (stag > 0) {bottomText += `  |  Stag: ${stag}`;}
+        if (stag > 0) {bottomText += `  |  Stagnation: ${stag}`;}
         ctx.fillText(bottomText, 8, World.bounds.height - 30);
 
         // Bottom-right: Mini fitness history bar chart
@@ -116,7 +114,7 @@ export default class HUD {
                 const com = body.getCOM();
                 // Convert to screen space
                 const sx = com.x - World.cameraX;
-                const sy = com.y - 20;
+                const sy = com.y - World.cameraY - 20;
 
                 ctx.save();
                 ctx.font = 'bold 16px monospace';

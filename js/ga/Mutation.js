@@ -8,54 +8,59 @@ function wrapPhase(val) {
     return ((val % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 }
 
-export function mutate(genome, rng, rawStructuralRate) {
+export function mutate(genome, rng, rawStructuralRate, parametricBoost) {
     const structuralRate = rawStructuralRate || 1;
+    const pb = Math.max(1, parametricBoost || 1);
+    // Probability caps at 3x (avoid guaranteed mutation on every gene)
+    const probScale = Math.min(pb, 3);
+    // Magnitude scales with sqrt (gentler — avoids destroying good solutions)
+    const magScale = Math.sqrt(pb);
     const g = cloneGenome(genome);
     const L = LIMITS;
 
-    // --- Parametric mutations ---
+    // --- Parametric mutations (scaled by stagnation boost) ---
 
     // Body dimensions
-    if (rng.random() < 0.15) {
-        g.bodyWidth = clamp(g.bodyWidth + rng.range(-20, 20), L.bodyWidth.min, L.bodyWidth.max);
+    if (rng.random() < 0.15 * probScale) {
+        g.bodyWidth = clamp(g.bodyWidth + rng.range(-20 * magScale, 20 * magScale), L.bodyWidth.min, L.bodyWidth.max);
     }
-    if (rng.random() < 0.15) {
-        g.bodyHeight = clamp(g.bodyHeight + rng.range(-20, 20), L.bodyHeight.min, L.bodyHeight.max);
+    if (rng.random() < 0.15 * probScale) {
+        g.bodyHeight = clamp(g.bodyHeight + rng.range(-20 * magScale, 20 * magScale), L.bodyHeight.min, L.bodyHeight.max);
     }
 
     // Point positions
     for (const p of g.points) {
-        if (rng.random() < 0.20) {
-            p.rx = clamp(p.rx + rng.range(-0.15, 0.15), L.pointRx.min, L.pointRx.max);
+        if (rng.random() < 0.20 * probScale) {
+            p.rx = clamp(p.rx + rng.range(-0.15 * magScale, 0.15 * magScale), L.pointRx.min, L.pointRx.max);
         }
-        if (rng.random() < 0.20) {
-            p.ry = clamp(p.ry + rng.range(-0.15, 0.15), L.pointRy.min, L.pointRy.max);
+        if (rng.random() < 0.20 * probScale) {
+            p.ry = clamp(p.ry + rng.range(-0.15 * magScale, 0.15 * magScale), L.pointRy.min, L.pointRy.max);
         }
     }
 
     // Constraint stiffness
     for (const c of g.constraints) {
-        if (rng.random() < 0.15) {
-            c.stiffness = clamp(c.stiffness + rng.range(-0.5, 0.5), L.stiffness.min, L.stiffness.max);
+        if (rng.random() < 0.15 * probScale) {
+            c.stiffness = clamp(c.stiffness + rng.range(-0.5 * magScale, 0.5 * magScale), L.stiffness.min, L.stiffness.max);
         }
     }
 
     // Muscle parameters
     for (const m of g.muscles) {
-        if (rng.random() < 0.20) {
-            m.extensionFactor = clamp(m.extensionFactor + rng.range(-0.1, 0.1), L.extensionFactor.min, L.extensionFactor.max);
+        if (rng.random() < 0.20 * probScale) {
+            m.extensionFactor = clamp(m.extensionFactor + rng.range(-0.1 * magScale, 0.1 * magScale), L.extensionFactor.min, L.extensionFactor.max);
         }
-        if (rng.random() < 0.20) {
-            m.contractionFactor = clamp(m.contractionFactor + rng.range(-0.1, 0.1), L.contractionFactor.min, L.contractionFactor.max);
+        if (rng.random() < 0.20 * probScale) {
+            m.contractionFactor = clamp(m.contractionFactor + rng.range(-0.1 * magScale, 0.1 * magScale), L.contractionFactor.min, L.contractionFactor.max);
         }
-        if (rng.random() < 0.20) {
-            m.frequency = clamp(m.frequency + rng.range(-0.3, 0.3), L.frequency.min, L.frequency.max);
+        if (rng.random() < 0.20 * probScale) {
+            m.frequency = clamp(m.frequency + rng.range(-0.3 * magScale, 0.3 * magScale), L.frequency.min, L.frequency.max);
         }
-        if (rng.random() < 0.25) {
-            m.phase = wrapPhase(m.phase + rng.range(-0.5, 0.5));
+        if (rng.random() < 0.25 * probScale) {
+            m.phase = wrapPhase(m.phase + rng.range(-0.5 * magScale, 0.5 * magScale));
         }
-        if (rng.random() < 0.15) {
-            m.strength = clamp(m.strength + rng.range(-0.01, 0.01), L.strength.min, L.strength.max);
+        if (rng.random() < 0.15 * probScale) {
+            m.strength = clamp(m.strength + rng.range(-0.01 * magScale, 0.01 * magScale), L.strength.min, L.strength.max);
         }
     }
 

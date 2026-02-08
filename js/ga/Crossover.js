@@ -13,7 +13,7 @@ function circularLerp(a, b, t) {
     return ((a + diff * t) % TAU + TAU) % TAU;
 }
 
-export function crossover(parentA, parentB, fitA, fitB, rng, structuralRate) {
+export function crossover(parentA, parentB, fitA, fitB, rng, structuralRate, parametricBoost) {
     // Topology from fitter parent, parameters blended
     const fitter = fitA >= fitB ? parentA : parentB;
     const other  = fitA >= fitB ? parentB : parentA;
@@ -58,5 +58,5 @@ export function crossover(parentA, parentB, fitA, fitB, rng, structuralRate) {
     }
 
     // Apply mutation to child
-    return mutate(child, rng, structuralRate);
+    return mutate(child, rng, structuralRate, parametricBoost);
 }

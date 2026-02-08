@@ -6,7 +6,7 @@ canvas.classList.add('simulation-canvas');
 ctx.lineWidth = 2;
 
 canvas.width = window.innerWidth;
-canvas.height = 550;
+canvas.height = window.innerHeight - 100;
 
 const World = {
     bounds: {
@@ -15,8 +15,8 @@ const World = {
         width: canvas.width,
         height: canvas.height
     },
-    worldWidth: 20000,
     cameraX: 0,
+    cameraY: 0,
     simSteps: 15,
     dt: 1 / 60,
     gravity: 600,

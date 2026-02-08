@@ -140,7 +140,9 @@ export default class SimulationManager {
         const distance = Math.max(0, state.maxX - state.startX);
         const energy = body.totalEnergy;
         const weight = this.config.energyWeight || 0;
-        state.fitness = distance / (1 + energy * weight);
+        let fitness = distance / (1 + energy * weight);
+        if (!isFinite(fitness)) fitness = 0;
+        state.fitness = fitness;
         state.distance = distance;
         state.energy = energy;
         body.frozen = true;
@@ -215,21 +217,32 @@ export default class SimulationManager {
     }
 
     getLeaderX() {
+        return this.getLeaderCOM().x;
+    }
+
+    getLeaderCOM() {
         let maxX = 0;
+        let leaderCOM = { x: 0, y: 0 };
         for (let i = 0; i < this.bodies.length; i++) {
             if (!this.bodyStates[i].finished) {
                 const com = this.bodies[i].getCOM();
-                if (com.x > maxX) {maxX = com.x;}
+                if (com.x > maxX) {
+                    maxX = com.x;
+                    leaderCOM = com;
+                }
             }
         }
         // If all finished, use the best one
         if (maxX === 0) {
             for (let i = 0; i < this.bodies.length; i++) {
                 const com = this.bodies[i].getCOM();
-                if (com.x > maxX) {maxX = com.x;}
+                if (com.x > maxX) {
+                    maxX = com.x;
+                    leaderCOM = com;
+                }
             }
         }
-        return maxX;
+        return leaderCOM;
     }
 
     _autoSave() {

@@ -141,13 +141,12 @@ export default class VerletBody {
         const gravity = World.gravity;
         const damping = World.damping;
         const terrain = World.terrain;
-        const worldWidth = World.worldWidth;
         const friction = World.groundFriction;
         const dtSq = dt * dt;
 
         for (let i = 0; i < pointMass.length; i++) {
             const point = pointMass[i];
-            let dx = (point.x - point.ox) * damping + point.vx * dt;
+            const dx = (point.x - point.ox) * damping + point.vx * dt;
             const dy = (point.y - point.oy) * damping + point.vy * dt + gravity * dtSq;
 
             point.vx = 0;
@@ -158,8 +157,16 @@ export default class VerletBody {
             point.x += dx;
             point.y += dy;
 
-            // Terrain collision
-            if (terrain && point.x >= 0 && point.x <= worldWidth) {
+            // NaN guard — freeze degenerate bodies
+            if (!isFinite(point.x) || !isFinite(point.y)) {
+                point.x = point.ox;
+                point.y = point.oy;
+                this.frozen = true;
+                return;
+            }
+
+            // Terrain collision (infinite — works for any x >= 0)
+            if (terrain && point.x >= 0) {
                 const terrainY = terrain.getHeightAtX(point.x);
                 if (point.y > terrainY) {
                     point.y = terrainY;
@@ -184,25 +191,21 @@ export default class VerletBody {
                         point.oy = point.y - dot * friction * ty;
                     }
                 }
-            } else {
-                // Fallback boundary collision for outside terrain range
-                if (point.y >= this.bounds.height) {
-                    point.y = this.bounds.height;
-                    dx = point.x - point.ox;
-                    point.ox += dx * 0.5;
+
+                // Water physics: drag + buoyancy
+                if (point.y > terrain.waterLevel) {
+                    // Buoyancy — upward force countering 65% of gravity
+                    point.y -= gravity * 0.65 * dtSq;
+
+                    // Drag — reduce velocity to 85% each step
+                    point.ox += (point.x - point.ox) * 0.15;
+                    point.oy += (point.y - point.oy) * 0.15;
                 }
             }
 
-            // Left/right world bounds
+            // Left boundary
             if (point.x < 0) {
                 point.x = 0;
-            } else if (point.x > worldWidth) {
-                point.x = worldWidth;
-            }
-
-            // Top boundary
-            if (point.y < 0) {
-                point.y = 0;
             }
         }
     }
@@ -293,11 +296,46 @@ export default class VerletBody {
         }
     }
 
+    resolveConstraintTerrain() {
+        const terrain = World.terrain;
+        if (!terrain) return;
+        const allConstraints = this.pointConstraints;
+        const allMuscles = this.pointMuscles;
+
+        for (let list = 0; list < 2; list++) {
+            const arr = list === 0 ? allConstraints : allMuscles;
+            for (let c = 0; c < arr.length; c++) {
+                const con = arr[c];
+                const p1 = con.p1;
+                const p2 = con.p2;
+
+                const dx = Math.abs(p2.x - p1.x);
+                const samples = Math.max(1, Math.ceil(dx / 20));
+
+                for (let s = 1; s <= samples; s++) {
+                    const t = s / (samples + 1);
+                    const sx = p1.x + (p2.x - p1.x) * t;
+                    const sy = p1.y + (p2.y - p1.y) * t;
+
+                    if (sx < 0) continue;
+
+                    const terrainY = terrain.getHeightAtX(sx);
+                    if (sy > terrainY) {
+                        const penetration = sy - terrainY;
+                        p1.y -= penetration * (1 - t);
+                        p2.y -= penetration * t;
+                    }
+                }
+            }
+        }
+    }
+
     update(frameDt) {
         if (this.frozen) {return;}
         this.age += frameDt;
-        this.updateConstraints();    // solve structure first
-        this.updatePointMass(frameDt); // then integrate + collide
+        this.updateConstraints();         // solve structure first
+        this.updatePointMass(frameDt);    // then integrate + collide
+        this.resolveConstraintTerrain();  // constraint-terrain collision
     }
 
     render() {

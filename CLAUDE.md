@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Commit Guidelines
+
+- Never include "Co-Authored-By" lines in commit messages
+
 ## Project Overview
 
 Genetic-walker evolves virtual stick creatures that learn to walk across procedural terrain, using a genetic algorithm with Verlet integration physics. No tests or linter configured.

@@ -31,6 +31,9 @@ controlsBar.innerHTML = `
     <button id="btn-5x">5x</button>
     <button id="btn-10x">10x</button>
     <button id="btn-20x">20x</button>
+    <button id="btn-100x">100x</button>
+    <button id="btn-250x">250x</button>
+    <button id="btn-1000x">1000x</button>
     <button id="btn-export">Export</button>
     <button id="btn-restart">New Run</button>
 `;
@@ -38,10 +41,7 @@ document.querySelector('main').appendChild(controlsBar);
 
 // Handle window resize
 window.addEventListener('resize', () => {
-    World.resize(window.innerWidth, 550);
-    if (terrain) {
-        terrain.generate();
-    }
+    World.resize(window.innerWidth, window.innerHeight -100);
 });
 
 // Show config screen
@@ -97,17 +97,19 @@ function gameLoop(timestamp) {
             accumulator -= dt;
         }
 
-        // Camera: smooth follow leader
-        const leaderX = simManager.getLeaderX();
-        const targetX = leaderX - World.bounds.width / 3; // leader at 1/3 from left
+        // Camera: smooth follow leader in X and Y
+        const leaderCOM = simManager.getLeaderCOM();
+        const targetX = leaderCOM.x - World.bounds.width / 3;
+        const targetY = leaderCOM.y - World.bounds.height * 0.6;
         World.cameraX += (targetX - World.cameraX) * 0.08;
-        World.cameraX = Math.max(0, Math.min(World.cameraX, World.worldWidth - World.bounds.width));
+        World.cameraY += (targetY - World.cameraY) * 0.08;
+        World.cameraX = Math.max(0, World.cameraX);
     }
 
     // Render
     ctx.clearRect(0, 0, World.bounds.width, World.bounds.height);
     ctx.save();
-    ctx.translate(-World.cameraX, 0);
+    ctx.translate(-World.cameraX, -World.cameraY);
 
     terrain.render();
 
@@ -192,6 +194,9 @@ document.addEventListener('click', (e) => {
         case 'btn-5x': setSpeed(5); break;
         case 'btn-10x': setSpeed(10); break;
         case 'btn-20x': setSpeed(20); break;
+        case 'btn-100x': setSpeed(100); break;
+        case 'btn-250x': setSpeed(250); break;
+        case 'btn-1000x': setSpeed(1000); break;
         case 'btn-export':
             if (simManager) {
                 exportJSON({

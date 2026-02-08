@@ -26,10 +26,9 @@ export function nextGeneration(scoredPopulation, populationSize, rng, structural
     // Sort by fitness descending
     const sorted = [...scoredPopulation].sort((a, b) => b.fitness - a.fitness);
 
-    // Stagnation boost: ramp up mutation pressure when stuck
-    let mutBoost = 1;
-    if (stagnationGen >= 5) {mutBoost = 2;}
-    if (stagnationGen >= 10) {mutBoost = 3;}
+    // Stagnation boost: continuous ramp that keeps growing
+    // Linear 0.2/gen, caps at 9x — reaches cap around gen 40
+    const mutBoost = 1 + Math.min(stagnationGen * 0.2, 8);
     const effectiveStructural = structuralRate * mutBoost;
 
     const newGenomes = [];
@@ -39,14 +38,16 @@ export function nextGeneration(scoredPopulation, populationSize, rng, structural
         newGenomes.push(cloneGenome(sorted[0].genome));
     }
     if (sorted.length >= 2) {
-        newGenomes.push(mutate(cloneGenome(sorted[1].genome), rng, effectiveStructural));
+        newGenomes.push(mutate(cloneGenome(sorted[1].genome), rng, effectiveStructural, mutBoost));
     }
 
-    // Random immigrants: ~10% of population are fresh random genomes
-    const numImmigrants = Math.max(1, Math.floor(populationSize * 0.1));
-    // More immigrants when stagnating
-    const extraImmigrants = stagnationGen >= 5 ? 1 : 0;
-    const totalImmigrants = numImmigrants + extraImmigrants;
+    // Random immigrants: 10% base + more during stagnation (up to 40% of pop)
+    const baseImmigrants = Math.max(1, Math.floor(populationSize * 0.1));
+    const stagnationImmigrants = Math.min(
+        Math.floor(populationSize * 0.3),
+        Math.floor(stagnationGen / 5)
+    );
+    const totalImmigrants = baseImmigrants + stagnationImmigrants;
 
     for (let i = 0; i < totalImmigrants && newGenomes.length < populationSize; i++) {
         const numPts = rng.int(3, 10);
@@ -70,10 +71,10 @@ export function nextGeneration(scoredPopulation, populationSize, rng, structural
             child = crossover(
                 parentA.genome, parentB.genome,
                 parentA.fitness, parentB.fitness,
-                rng, effectiveStructural
+                rng, effectiveStructural, mutBoost
             );
         } else {
-            child = mutate(cloneGenome(parentA.genome), rng, effectiveStructural);
+            child = mutate(cloneGenome(parentA.genome), rng, effectiveStructural, mutBoost);
         }
 
         newGenomes.push(child);
