@@ -4,7 +4,7 @@ import World from './World.js';
 function hash(ix, seed) {
     let h = (ix * 374761393 + seed * 668265263) | 0;
     h = (h ^ (h >>> 13)) * 1274126177 | 0;
-    h = h ^ (h >>> 16);
+    h ^= (h >>> 16);
     return (h >>> 0) / 4294967296;
 }
 
@@ -37,20 +37,39 @@ export default class Terrain {
         for (let i = 0; i < numPoints; i++) {
             const x = i * segWidth;
 
-            // Progressive difficulty: terrain gets harder as x increases
-            const difficulty = Math.min(x / 4000, 3.0);
+            // Progressive difficulty: reaches max at x=15000
+            const difficulty = Math.min(x / 3000, 5.0);
 
-            const amp1 = 120 + difficulty * 80;   // large hills: 120 -> 360
-            const wl1  = 400 - difficulty * 80;    // wavelength: 400 -> 160
-            const amp2 = 50 + difficulty * 30;     // medium bumps: 50 -> 140
-            const wl2  = 120 - difficulty * 25;    // wavelength: 120 -> 45
-            const amp3 = 16 + difficulty * 12;     // small roughness: 16 -> 52
-            const wl3  = 40 - difficulty * 8;      // wavelength: 40 -> 16
+            const amp1 = 120 + difficulty * 80;   // large hills: 120 -> 520
+            const wl1  = 400 - difficulty * 80;    // wavelength: 400 -> 0 (clamped below)
+            const amp2 = 50 + difficulty * 30;     // medium bumps: 50 -> 200
+            const wl2  = 120 - difficulty * 25;    // wavelength: 120 -> -5 (clamped below)
+            const amp3 = 16 + difficulty * 12;     // small roughness: 16 -> 76
+            const wl3  = 40 - difficulty * 8;      // wavelength: 40 -> 0 (clamped below)
 
             let y = baseGround;
             y += (noise(x, Math.max(wl1, 20), seed * 3 + 1) - 0.5) * amp1;
             y += (noise(x, Math.max(wl2, 10), seed * 7 + 2) - 0.5) * amp2;
             y += (noise(x, Math.max(wl3, 5),  seed * 13 + 3) - 0.5) * amp3;
+
+            // 4th layer: mountains — broad, high-amplitude features in harder terrain
+            if (difficulty > 1.5) {
+                const mountainStrength = Math.min((difficulty - 1.5) / 2.0, 1.0);
+                const amp4 = 250 * mountainStrength;
+                const wl4 = 600 - difficulty * 40; // wavelength: 540 -> 400
+                y += (noise(x, Math.max(wl4, 200), seed * 19 + 4) - 0.5) * amp4;
+            }
+
+            // Cliff generation: sudden elevation changes in hard terrain
+            if (difficulty > 2.0) {
+                const segIdx = Math.floor(x / segWidth);
+                const cliffRoll = hash(segIdx, seed * 31 + 5);
+                const cliffChance = 0.015 * Math.min((difficulty - 2.0) / 2.0, 1.0);
+                if (cliffRoll < cliffChance) {
+                    const cliffHeight = (hash(segIdx, seed * 37 + 6) - 0.5) * 2;
+                    y += cliffHeight * (80 + 120 * (difficulty / 5.0));
+                }
+            }
 
             // Flat starting zone: blend toward baseGround for first ~200px
             if (x < 200) {
@@ -58,17 +77,21 @@ export default class Terrain {
                 y = baseGround + (y - baseGround) * blend * blend;
             }
 
-            const minY = canvasH * 0.10;
+            const minY = canvasH * 0.05;
             const maxY = canvasH * 0.95;
             y = Math.max(minY, Math.min(maxY, y));
             this.points.push({ x, y });
         }
 
-        // Smoothing pass (3-point average)
+        // Region-aware smoothing: full smoothing at start, reduced in hard terrain
         for (let pass = 0; pass < 2; pass++) {
             const smoothed = this.points.map((p, i, arr) => {
-                if (i === 0 || i === arr.length - 1) return { x: p.x, y: p.y };
-                return { x: p.x, y: (arr[i - 1].y + p.y + arr[i + 1].y) / 3 };
+                if (i === 0 || i === arr.length - 1) {return { x: p.x, y: p.y };}
+                const difficulty = Math.min(p.x / 3000, 5.0);
+                // Smoothing weight: 1.0 (full) at start, 0.3 at max difficulty
+                const smoothWeight = 1.0 - 0.7 * Math.min(difficulty / 3.0, 1.0);
+                const avg = (arr[i - 1].y + p.y + arr[i + 1].y) / 3;
+                return { x: p.x, y: p.y + (avg - p.y) * smoothWeight };
             });
             this.points = smoothed;
         }
