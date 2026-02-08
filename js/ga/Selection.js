@@ -28,8 +28,8 @@ export function nextGeneration(scoredPopulation, populationSize, rng, structural
 
     // Stagnation boost: ramp up mutation pressure when stuck
     let mutBoost = 1;
-    if (stagnationGen >= 5) mutBoost = 2;
-    if (stagnationGen >= 10) mutBoost = 3;
+    if (stagnationGen >= 5) {mutBoost = 2;}
+    if (stagnationGen >= 10) {mutBoost = 3;}
     const effectiveStructural = structuralRate * mutBoost;
 
     const newGenomes = [];
@@ -62,7 +62,7 @@ export function nextGeneration(scoredPopulation, populationSize, rng, structural
         let parentB = parentA;
         for (let attempt = 0; attempt < 3; attempt++) {
             parentB = tournamentSelect(sorted, rng, 3);
-            if (parentB !== parentA) break;
+            if (parentB !== parentA) {break;}
         }
 
         let child;

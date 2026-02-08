@@ -8,8 +8,8 @@ function wrapPhase(val) {
     return ((val % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
 }
 
-export function mutate(genome, rng, structuralRate) {
-    structuralRate = structuralRate || 1;
+export function mutate(genome, rng, rawStructuralRate) {
+    const structuralRate = rawStructuralRate || 1;
     const g = cloneGenome(genome);
     const L = LIMITS;
 
@@ -61,8 +61,6 @@ export function mutate(genome, rng, structuralRate) {
 
     // --- Structural mutations (scaled by structuralRate) ---
 
-    const numPts = g.points.length;
-
     // Add point
     if (rng.random() < 0.05 * structuralRate) {
         const newIdx = g.points.length;
@@ -98,7 +96,7 @@ export function mutate(genome, rng, structuralRate) {
     if (rng.random() < 0.05 * structuralRate && g.points.length >= 2) {
         const a = rng.int(0, g.points.length);
         let b = rng.int(0, g.points.length);
-        if (b === a) b = (a + 1) % g.points.length;
+        if (b === a) {b = (a + 1) % g.points.length;}
         const exists = g.constraints.some(c =>
             (c.a === a && c.b === b) || (c.a === b && c.b === a)
         );
@@ -127,7 +125,7 @@ export function mutate(genome, rng, structuralRate) {
     if (rng.random() < 0.05 * structuralRate && g.points.length >= 2) {
         const a = rng.int(0, g.points.length);
         let b = rng.int(0, g.points.length);
-        if (b === a) b = (a + 1) % g.points.length;
+        if (b === a) {b = (a + 1) % g.points.length;}
         const exists = g.muscles.some(m =>
             (m.a === a && m.b === b) || (m.a === b && m.b === a)
         );

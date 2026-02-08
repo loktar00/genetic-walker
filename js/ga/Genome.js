@@ -20,20 +20,63 @@ function clamp(val, min, max) {
     return Math.max(min, Math.min(max, val));
 }
 
-export function createRandomGenome(rng, numPoints, numMuscles) {
-    numPoints = Math.max(LIMITS.minPoints, numPoints || 5);
-    numMuscles = Math.max(LIMITS.minMuscles, numMuscles || 3);
+export function createRandomGenome(rng, rawNumPoints, rawNumMuscles) {
+    const numPoints = Math.max(LIMITS.minPoints, rawNumPoints || 5);
+    const numMuscles = Math.max(LIMITS.minMuscles, rawNumMuscles || 3);
 
-    const bodyWidth = rng.range(60, 200);
-    const bodyHeight = rng.range(40, 150);
+    // Body shape variety: 25% tall/narrow, 25% wide/flat, 50% standard
+    const shapeRoll = rng.random();
+    let bodyWidth, bodyHeight;
+    if (shapeRoll < 0.25) {
+        // Tall/narrow — leggy potential
+        bodyWidth = rng.range(30, 100);
+        bodyHeight = rng.range(100, 250);
+    } else if (shapeRoll < 0.50) {
+        // Wide/flat — crawler potential
+        bodyWidth = rng.range(120, 280);
+        bodyHeight = rng.range(30, 80);
+    } else {
+        // Standard — slightly expanded range
+        bodyWidth = rng.range(50, 200);
+        bodyHeight = rng.range(40, 180);
+    }
 
-    // Create points with relative positions
+    // Regional point placement bias
+    const placementRoll = rng.random();
     const points = [];
-    for (let i = 0; i < numPoints; i++) {
-        points.push({
-            rx: rng.random(),
-            ry: rng.random()
-        });
+
+    if (placementRoll < 0.30) {
+        // Bimodal vertical: 40% bottom cluster (ground contact), 60% upper (body mass)
+        for (let i = 0; i < numPoints; i++) {
+            const rx = rng.random();
+            let ry;
+            if (rng.random() < 0.4) {
+                // Bottom 30% — ground contact region
+                ry = 0.7 + rng.random() * 0.3;
+            } else {
+                // Upper 50% — body mass
+                ry = rng.random() * 0.5;
+            }
+            points.push({ rx, ry });
+        }
+    } else if (placementRoll < 0.50) {
+        // Symmetric left-right: points in mirrored pairs
+        for (let i = 0; i < numPoints; i += 2) {
+            const rx = rng.range(0.5, 1.0);
+            const ry = rng.random();
+            points.push({ rx, ry });
+            if (i + 1 < numPoints) {
+                points.push({ rx: 1.0 - rx, ry });
+            }
+        }
+    } else {
+        // Uniform random — existing behavior
+        for (let i = 0; i < numPoints; i++) {
+            points.push({
+                rx: rng.random(),
+                ry: rng.random()
+            });
+        }
     }
 
     // Chain constraints (ensure connectivity)
@@ -51,7 +94,7 @@ export function createRandomGenome(rng, numPoints, numMuscles) {
     for (let i = 0; i < numBraces; i++) {
         const a = rng.int(0, numPoints);
         let b = rng.int(0, numPoints);
-        if (b === a) b = (a + 1) % numPoints;
+        if (b === a) {b = (a + 1) % numPoints;}
         // Check not duplicate
         const exists = constraints.some(c =>
             (c.a === a && c.b === b) || (c.a === b && c.b === a)
@@ -69,7 +112,7 @@ export function createRandomGenome(rng, numPoints, numMuscles) {
     for (let i = 0; i < numMuscles; i++) {
         const a = rng.int(0, numPoints);
         let b = rng.int(0, numPoints);
-        if (b === a) b = (a + 1) % numPoints;
+        if (b === a) {b = (a + 1) % numPoints;}
         // Avoid duplicate muscles
         const exists = muscles.some(m =>
             (m.a === a && m.b === b) || (m.a === b && m.b === a)
@@ -96,6 +139,19 @@ export function createRandomGenome(rng, numPoints, numMuscles) {
             phase: 0,
             strength: 0.02
         });
+    }
+
+    // Phase alternation for bottom muscles (30% chance)
+    if (rng.random() < 0.30) {
+        let idx = 0;
+        for (const m of muscles) {
+            const ptA = points[m.a];
+            const ptB = points[m.b];
+            if (ptA && ptB && (ptA.ry > 0.7 || ptB.ry > 0.7)) {
+                m.phase = (m.phase + Math.PI * idx) % (Math.PI * 2);
+                idx++;
+            }
+        }
     }
 
     return {

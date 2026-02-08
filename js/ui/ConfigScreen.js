@@ -77,7 +77,7 @@ export default class ConfigScreen {
                 </div>
                 <div class="config-buttons">
                     <button id="cfg-start">Start New</button>
-                    ${saved ? '<button id="cfg-resume">Resume (Gen ' + saved.generation + ')</button>' : ''}
+                    ${saved ? `<button id="cfg-resume">Resume (Gen ${  saved.generation  })</button>` : ''}
                 </div>
             </div>
         `;
@@ -113,15 +113,15 @@ export default class ConfigScreen {
     _getConfig() {
         const evalMode = document.getElementById('cfg-eval-mode').value;
         return {
-            populationSize: parseInt(document.getElementById('cfg-pop').value) || DEFAULTS.populationSize,
-            evalMode: evalMode,
-            evalTime: evalMode === 'timed' ? (parseInt(document.getElementById('cfg-eval').value) || DEFAULTS.evalTime) : Infinity,
-            stallTimeout: parseInt(document.getElementById('cfg-stall').value) || DEFAULTS.stallTimeout,
-            backwardThreshold: parseInt(document.getElementById('cfg-backward').value) || DEFAULTS.backwardThreshold,
+            populationSize: parseInt(document.getElementById('cfg-pop').value, 10) || DEFAULTS.populationSize,
+            evalMode,
+            evalTime: evalMode === 'timed' ? (parseInt(document.getElementById('cfg-eval').value, 10) || DEFAULTS.evalTime) : Infinity,
+            stallTimeout: parseInt(document.getElementById('cfg-stall').value, 10) || DEFAULTS.stallTimeout,
+            backwardThreshold: parseInt(document.getElementById('cfg-backward').value, 10) || DEFAULTS.backwardThreshold,
             structuralMutationRate: parseFloat(document.getElementById('cfg-structural').value),
-            startingPoints: parseInt(document.getElementById('cfg-points').value) || DEFAULTS.startingPoints,
-            startingMuscles: parseInt(document.getElementById('cfg-muscles').value) || DEFAULTS.startingMuscles,
-            terrainSeed: parseInt(document.getElementById('cfg-seed').value) || DEFAULTS.terrainSeed
+            startingPoints: parseInt(document.getElementById('cfg-points').value, 10) || DEFAULTS.startingPoints,
+            startingMuscles: parseInt(document.getElementById('cfg-muscles').value, 10) || DEFAULTS.startingMuscles,
+            terrainSeed: parseInt(document.getElementById('cfg-seed').value, 10) || DEFAULTS.terrainSeed
         };
     }
 
@@ -138,7 +138,7 @@ export default class ConfigScreen {
 
     _handleImport(e) {
         const file = e.target.files[0];
-        if (!file) return;
+        if (!file) {return;}
         const reader = new FileReader();
         reader.onload = (ev) => {
             try {
@@ -146,7 +146,7 @@ export default class ConfigScreen {
                 this.hide();
                 this.onStart({ mode: 'resume', savedState: imported, config: imported.config });
             } catch (err) {
-                alert('Invalid JSON file: ' + err.message);
+                alert(`Invalid JSON file: ${  err.message}`);
             }
         };
         reader.readAsText(file);

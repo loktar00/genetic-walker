@@ -1,4 +1,4 @@
-import { cloneGenome, validateGenome } from './Genome.js';
+import { cloneGenome } from './Genome.js';
 import { mutate } from './Mutation.js';
 
 function lerp(a, b, t) {
@@ -9,7 +9,7 @@ function lerp(a, b, t) {
 function circularLerp(a, b, t) {
     const TAU = Math.PI * 2;
     let diff = ((b - a) % TAU + TAU) % TAU;
-    if (diff > Math.PI) diff -= TAU;
+    if (diff > Math.PI) {diff -= TAU;}
     return ((a + diff * t) % TAU + TAU) % TAU;
 }
 

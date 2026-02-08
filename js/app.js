@@ -7,8 +7,6 @@ import { exportJSON } from './ui/Persistence.js';
 
 const canvas = World.canvas;
 const ctx = World.ctx;
-const viewWidth = World.bounds.width;
-const viewHeight = World.bounds.height;
 const dt = World.dt;
 
 let simManager = null;
@@ -35,6 +33,14 @@ controlsBar.innerHTML = `
     <button id="btn-restart">New Run</button>
 `;
 document.querySelector('main').appendChild(controlsBar);
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    World.resize(window.innerWidth, 550);
+    if (terrain) {
+        terrain.generate();
+    }
+});
 
 // Show config screen
 const configScreen = new ConfigScreen(handleStart);
@@ -65,7 +71,7 @@ function handleStart({ mode, config, savedState }) {
 }
 
 function gameLoop(timestamp) {
-    if (!running) return;
+    if (!running) {return;}
 
     if (lastTime === 0) {
         lastTime = timestamp;
@@ -76,7 +82,7 @@ function gameLoop(timestamp) {
     let frameTime = (timestamp - lastTime) / 1000;
     lastTime = timestamp;
 
-    if (frameTime > 0.1) frameTime = 0.1;
+    if (frameTime > 0.1) {frameTime = 0.1;}
 
     if (!hud.paused) {
         accumulator += frameTime;
@@ -91,13 +97,13 @@ function gameLoop(timestamp) {
 
         // Camera: smooth follow leader
         const leaderX = simManager.getLeaderX();
-        const targetX = leaderX - viewWidth / 3; // leader at 1/3 from left
+        const targetX = leaderX - World.bounds.width / 3; // leader at 1/3 from left
         World.cameraX += (targetX - World.cameraX) * 0.08;
-        World.cameraX = Math.max(0, Math.min(World.cameraX, World.worldWidth - viewWidth));
+        World.cameraX = Math.max(0, Math.min(World.cameraX, World.worldWidth - World.bounds.width));
     }
 
     // Render
-    ctx.clearRect(0, 0, viewWidth, viewHeight);
+    ctx.clearRect(0, 0, World.bounds.width, World.bounds.height);
     ctx.save();
     ctx.translate(-World.cameraX, 0);
 
@@ -127,16 +133,16 @@ function gameLoop(timestamp) {
 
 // Canvas click → HUD interaction
 canvas.addEventListener('click', (e) => {
-    if (!hud) return;
+    if (!hud) {return;}
     const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (viewWidth / rect.width);
-    const y = (e.clientY - rect.top) * (viewHeight / rect.height);
+    const x = (e.clientX - rect.left) * (World.bounds.width / rect.width);
+    const y = (e.clientY - rect.top) * (World.bounds.height / rect.height);
     hud.handleClick(x, y);
 });
 
 // Keyboard controls
 document.addEventListener('keydown', (e) => {
-    if (!hud) return;
+    if (!hud) {return;}
 
     switch (e.key) {
         case ' ':
@@ -162,13 +168,13 @@ function setSpeed(multiplier) {
 
 function updatePauseButton() {
     const btn = document.getElementById('btn-pause');
-    if (btn) btn.textContent = hud.paused ? 'Resume' : 'Pause';
+    if (btn) {btn.textContent = hud.paused ? 'Resume' : 'Pause';}
 }
 
 // Button handlers
 document.addEventListener('click', (e) => {
     const id = e.target.id;
-    if (!id) return;
+    if (!id) {return;}
 
     switch (id) {
         case 'btn-pause':

@@ -43,15 +43,21 @@ export default class HUD {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
         ctx.fillRect(0, World.bounds.height - 50, w, 50);
 
-        // Bottom-left: Current best + All-time best + stagnation
+        // Bottom-left: Current best + All-time best + mutation rate + stagnation
         const genBest = sim.getGenBestFitness();
         const allTimeBest = sim.bestFitness;
         const stag = sim.stagnationGen;
+        const baseRate = sim.config.structuralMutationRate;
+        let mutBoost = 1;
+        if (stag >= 5) {mutBoost = 2;}
+        if (stag >= 10) {mutBoost = 3;}
+        const effectiveRate = baseRate * mutBoost;
+
         ctx.textAlign = 'left';
         ctx.fillStyle = stag >= 5 ? '#f55' : '#ff0';
-        let bottomText = `Gen best: ${Math.round(genBest)}px  |  All-time: ${Math.round(allTimeBest)}px`;
-        if (stag > 0) bottomText += `  |  Stag: ${stag}`;
-        if (stag >= 5) bottomText += ' (boosted)';
+        let bottomText = `Gen best: ${Math.round(genBest)}px  |  All-time: ${Math.round(allTimeBest)}px  |  Mut: ${baseRate}x`;
+        if (mutBoost > 1) {bottomText += `→${effectiveRate}x`;}
+        if (stag > 0) {bottomText += `  |  Stag: ${stag}`;}
         ctx.fillText(bottomText, 8, World.bounds.height - 30);
 
         // Bottom-right: Mini fitness history bar chart
@@ -65,11 +71,11 @@ export default class HUD {
 
     _renderHistoryChart(ctx, x, y, w, h) {
         const history = this.sim.history;
-        if (history.length === 0) return;
+        if (history.length === 0) {return;}
 
         // Show last 20 generations
         const show = history.slice(-20);
-        const maxFit = Math.max(...show.map(h => h.best), 1);
+        const maxFit = Math.max(...show.map(entry => entry.best), 1);
         const barW = w / show.length;
 
         ctx.fillStyle = '#333';

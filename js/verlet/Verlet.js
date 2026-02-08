@@ -19,10 +19,11 @@ export default class VerletBody {
         }
     }
 
-    _buildFromGenome(genome, spawnX, spawnY) {
+    _buildFromGenome(genome, spawnX, rawSpawnY) {
         const terrain = World.terrain;
 
         // If no spawnY provided, calculate from terrain
+        let spawnY = rawSpawnY;
         if (spawnY === undefined) {
             const terrainY = terrain ? terrain.getHeightAtX(spawnX) : World.bounds.height;
             spawnY = terrainY - genome.bodyHeight - 20;
@@ -56,8 +57,8 @@ export default class VerletBody {
 
     createPoint(x, y, vx, vy) {
         this.pointMass.push({
-            x: x,
-            y: y,
+            x,
+            y,
             ox: x,
             oy: y,
             vx: vx || 0,
@@ -73,7 +74,7 @@ export default class VerletBody {
         this.pointConstraints.push({
             p1: pMassA,
             p2: pMassB,
-            spring: spring,
+            spring,
             cLength: Math.max(rawLength, 5)
         });
     }
@@ -90,11 +91,11 @@ export default class VerletBody {
             p1: pMassA,
             p2: pMassB,
             cLength: restLength,
-            restLength: restLength,
-            minLen: minLen,
-            maxLen: maxLen,
-            frequency: frequency,
-            phase: phase,
+            restLength,
+            minLen,
+            maxLen,
+            frequency,
+            phase,
             spring: strength
         });
     }
@@ -116,7 +117,7 @@ export default class VerletBody {
             maxLen: muscleMax,
             frequency: 1.5,
             phase: 0,
-            spring: spring
+            spring
         });
     }
 
@@ -146,7 +147,7 @@ export default class VerletBody {
         for (let i = 0; i < pointMass.length; i++) {
             const point = pointMass[i];
             let dx = (point.x - point.ox) * damping + point.vx * dt;
-            let dy = (point.y - point.oy) * damping + point.vy * dt + gravity * dtSq;
+            const dy = (point.y - point.oy) * damping + point.vy * dt + gravity * dtSq;
 
             point.vx = 0;
             point.vy = 0;
@@ -223,8 +224,8 @@ export default class VerletBody {
             diff = 0;
         }
 
-        dx = dx * 0.5;
-        dy = dy * 0.5;
+        dx *= 0.5;
+        dy *= 0.5;
 
         constraint.p1.x -= (diff * dx) / constraint.spring;
         constraint.p1.y -= (diff * dy) / constraint.spring;
@@ -250,8 +251,8 @@ export default class VerletBody {
             diff = 0;
         }
 
-        dx = dx * 0.5;
-        dy = dy * 0.5;
+        dx *= 0.5;
+        dy *= 0.5;
 
         muscle.p1.x -= (diff * dx) * muscle.spring;
         muscle.p1.y -= (diff * dy) * muscle.spring;
@@ -259,7 +260,7 @@ export default class VerletBody {
         muscle.p2.y += (diff * dy) * muscle.spring;
     }
 
-    updateConstraints(dt) {
+    updateConstraints() {
         const pointConstraints = this.pointConstraints;
         const pointMuscles = this.pointMuscles;
         const simSteps = this.simSteps;
@@ -282,11 +283,11 @@ export default class VerletBody {
         }
     }
 
-    update(dt) {
-        if (this.frozen) return;
-        this.age += dt;
-        this.updateConstraints(dt);  // solve structure first
-        this.updatePointMass(dt);    // then integrate + collide
+    update(frameDt) {
+        if (this.frozen) {return;}
+        this.age += frameDt;
+        this.updateConstraints();    // solve structure first
+        this.updatePointMass(frameDt); // then integrate + collide
     }
 
     render() {

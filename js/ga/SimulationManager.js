@@ -2,7 +2,6 @@ import { createRNG } from '../utils/random.js';
 import { createRandomGenome, cloneGenome } from './Genome.js';
 import { nextGeneration } from './Selection.js';
 import VerletBody from '../verlet/Verlet.js';
-import World from '../verlet/World.js';
 import { saveState } from '../ui/Persistence.js';
 
 export default class SimulationManager {
@@ -72,7 +71,7 @@ export default class SimulationManager {
     }
 
     update(dt) {
-        if (this.state !== 'RUNNING') return;
+        if (this.state !== 'RUNNING') {return;}
 
         this.elapsedTime += dt;
 
@@ -80,7 +79,10 @@ export default class SimulationManager {
             const body = this.bodies[i];
             const state = this.bodyStates[i];
 
-            if (state.finished) continue;
+            if (state.finished) {
+                // eslint-disable-next-line no-continue
+                continue;
+            }
 
             body.update(dt);
 
@@ -166,6 +168,7 @@ export default class SimulationManager {
         }
 
         const stagnMsg = this.stagnationGen > 0 ? ` stag=${this.stagnationGen}` : '';
+        // eslint-disable-next-line no-console
         console.log(`Gen ${this.generation}: best=${Math.round(genBest)}px avg=${Math.round(genAvg)}px${stagnMsg}`);
 
         // Auto-save
@@ -187,7 +190,7 @@ export default class SimulationManager {
     }
 
     getGenBestFitness() {
-        if (this.bodyStates.length === 0) return 0;
+        if (this.bodyStates.length === 0) {return 0;}
         return Math.max(...this.bodyStates.map(s =>
             Math.max(0, s.maxX - s.startX)
         ));
@@ -198,14 +201,14 @@ export default class SimulationManager {
         for (let i = 0; i < this.bodies.length; i++) {
             if (!this.bodyStates[i].finished) {
                 const com = this.bodies[i].getCOM();
-                if (com.x > maxX) maxX = com.x;
+                if (com.x > maxX) {maxX = com.x;}
             }
         }
         // If all finished, use the best one
         if (maxX === 0) {
             for (let i = 0; i < this.bodies.length; i++) {
                 const com = this.bodies[i].getCOM();
-                if (com.x > maxX) maxX = com.x;
+                if (com.x > maxX) {maxX = com.x;}
             }
         }
         return maxX;

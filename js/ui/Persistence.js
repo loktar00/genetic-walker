@@ -9,7 +9,7 @@ function serializeConfig(config) {
 }
 
 function deserializeConfig(config) {
-    if (!config) return config;
+    if (!config) {return config;}
     return {
         ...config,
         evalTime: (config.evalMode === 'unlimited' || config.evalTime === null) ? Infinity : config.evalTime
@@ -37,9 +37,9 @@ export function saveState(state) {
 export function loadState() {
     try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return null;
+        if (!raw) {return null;}
         const data = JSON.parse(raw);
-        if (data.version !== 1) return null;
+        if (data.version !== 1) {return null;}
         data.config = deserializeConfig(data.config);
         return data;
     } catch (e) {
@@ -76,7 +76,7 @@ export function exportJSON(state) {
 
 export function importJSON(jsonString) {
     const data = JSON.parse(jsonString);
-    if (data.version !== 1) throw new Error('Unknown save version');
+    if (data.version !== 1) {throw new Error('Unknown save version');}
     data.config = deserializeConfig(data.config);
     return data;
 }
