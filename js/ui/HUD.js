@@ -55,7 +55,16 @@ export default class HUD {
 
         ctx.textAlign = 'left';
         ctx.fillStyle = stag >= 5 ? '#f55' : '#ff0';
-        let bottomText = `Gen best: ${Math.round(genBest)}px  |  All-time: ${Math.round(allTimeBest)}px  |  Mut: ${baseRate}x`;
+        let bottomText = `Gen best: ${Math.round(genBest)}px`;
+        if (sim.config.energyWeight > 0) {
+            const bestIdx = sim.getGenBestIndex();
+            if (bestIdx >= 0 && sim.bodyStates[bestIdx].energy > 0) {
+                const dist = sim.bodyStates[bestIdx].distance || (sim.bodyStates[bestIdx].maxX - sim.bodyStates[bestIdx].startX);
+                const eff = dist / sim.bodyStates[bestIdx].energy;
+                bottomText += ` (${eff.toFixed(1)} eff)`;
+            }
+        }
+        bottomText += `  |  All-time: ${Math.round(allTimeBest)}px  |  Mut: ${baseRate}x`;
         if (mutBoost > 1) {bottomText += `→${effectiveRate}x`;}
         if (stag > 0) {bottomText += `  |  Stag: ${stag}`;}
         ctx.fillText(bottomText, 8, World.bounds.height - 30);

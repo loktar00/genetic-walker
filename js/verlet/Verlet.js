@@ -11,6 +11,7 @@ export default class VerletBody {
         this.ctx = World.ctx;
         this.genome = genome || null;
         this.age = 0;
+        this.totalEnergy = 0;
         this.frozen = false;
         this.color = color || 'rgb(0,255,0)';
 
@@ -270,6 +271,15 @@ export default class VerletBody {
             const muscle = pointMuscles[c];
             const t = Math.sin(this.age * muscle.frequency * Math.PI * 2 + muscle.phase) * 0.5 + 0.5;
             muscle.cLength = muscle.minLen + t * (muscle.maxLen - muscle.minLen);
+        }
+
+        // Measure muscle energy (before solver iterations for consistency)
+        for (let c = 0; c < pointMuscles.length; c++) {
+            const muscle = pointMuscles[c];
+            const mdx = muscle.p1.x - muscle.p2.x;
+            const mdy = muscle.p1.y - muscle.p2.y;
+            const dist = Math.sqrt(mdx * mdx + mdy * mdy);
+            this.totalEnergy += Math.abs(dist - muscle.cLength) * muscle.spring;
         }
 
         // Solver iterations (structure enforcement)

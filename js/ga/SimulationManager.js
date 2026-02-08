@@ -137,7 +137,12 @@ export default class SimulationManager {
         const state = this.bodyStates[index];
         const body = this.bodies[index];
         state.finished = true;
-        state.fitness = Math.max(0, state.maxX - state.startX);
+        const distance = Math.max(0, state.maxX - state.startX);
+        const energy = body.totalEnergy;
+        const weight = this.config.energyWeight || 0;
+        state.fitness = distance / (1 + energy * weight);
+        state.distance = distance;
+        state.energy = energy;
         body.frozen = true;
         body.setColor('rgba(100, 100, 100, 0.5)');
         body._muscleColor = 'rgba(100, 100, 100, 0.3)';
@@ -194,6 +199,19 @@ export default class SimulationManager {
         return Math.max(...this.bodyStates.map(s =>
             Math.max(0, s.maxX - s.startX)
         ));
+    }
+
+    getGenBestIndex() {
+        if (this.bodyStates.length === 0) {return -1;}
+        let bestIdx = 0;
+        let bestFit = this.bodyStates[0].fitness;
+        for (let i = 1; i < this.bodyStates.length; i++) {
+            if (this.bodyStates[i].fitness > bestFit) {
+                bestFit = this.bodyStates[i].fitness;
+                bestIdx = i;
+            }
+        }
+        return bestIdx;
     }
 
     getLeaderX() {

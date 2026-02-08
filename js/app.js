@@ -29,6 +29,8 @@ controlsBar.innerHTML = `
     <button id="btn-2x">2x</button>
     <button id="btn-3x">3x</button>
     <button id="btn-5x">5x</button>
+    <button id="btn-10x">10x</button>
+    <button id="btn-20x">20x</button>
     <button id="btn-export">Export</button>
     <button id="btn-restart">New Run</button>
 `;
@@ -154,13 +156,14 @@ document.addEventListener('keydown', (e) => {
         case '2': setSpeed(2); break;
         case '3': setSpeed(3); break;
         case '5': setSpeed(5); break;
+        case '0': setSpeed(10); break;
     }
 });
 
 function setSpeed(multiplier) {
     World.speedMultiplier = multiplier;
     document.querySelectorAll('.sim-controls button[id^="btn-"]').forEach(btn => {
-        if (btn.id.match(/btn-\dx/)) {
+        if (btn.id.match(/btn-\d+x/)) {
             btn.classList.toggle('active', btn.id === `btn-${multiplier}x`);
         }
     });
@@ -187,6 +190,8 @@ document.addEventListener('click', (e) => {
         case 'btn-2x': setSpeed(2); break;
         case 'btn-3x': setSpeed(3); break;
         case 'btn-5x': setSpeed(5); break;
+        case 'btn-10x': setSpeed(10); break;
+        case 'btn-20x': setSpeed(20); break;
         case 'btn-export':
             if (simManager) {
                 exportJSON({

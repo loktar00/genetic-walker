@@ -6,6 +6,7 @@ const DEFAULTS = {
     evalTime: 30,
     stallTimeout: 3,
     backwardThreshold: 30,  // px behind maxX to trigger backward stall
+    energyWeight: 0,            // 0=disabled, higher=more penalty for energy use
     structuralMutationRate: 1,  // multiplier: 0=off, 1=normal, 5=aggressive
     startingPoints: 5,
     startingMuscles: 3,
@@ -50,6 +51,13 @@ export default class ConfigScreen {
                     <label>
                         <span>Backward Threshold (px)</span>
                         <input type="number" id="cfg-backward" value="${d.backwardThreshold}" min="0" max="200">
+                    </label>
+                    <label>
+                        <span>Energy Penalty</span>
+                        <div class="slider-group">
+                            <input type="range" id="cfg-energy" value="${d.energyWeight}" min="0" max="1" step="0.05">
+                            <span id="cfg-energy-val">${d.energyWeight}</span>
+                        </div>
                     </label>
                     <label>
                         <span>Structural Mutation</span>
@@ -105,6 +113,9 @@ export default class ConfigScreen {
         });
 
         // Live slider value display
+        document.getElementById('cfg-energy').addEventListener('input', (e) => {
+            document.getElementById('cfg-energy-val').textContent = e.target.value;
+        });
         document.getElementById('cfg-structural').addEventListener('input', (e) => {
             document.getElementById('cfg-structural-val').textContent = `${e.target.value}x`;
         });
@@ -118,6 +129,7 @@ export default class ConfigScreen {
             evalTime: evalMode === 'timed' ? (parseInt(document.getElementById('cfg-eval').value, 10) || DEFAULTS.evalTime) : Infinity,
             stallTimeout: parseInt(document.getElementById('cfg-stall').value, 10) || DEFAULTS.stallTimeout,
             backwardThreshold: parseInt(document.getElementById('cfg-backward').value, 10) || DEFAULTS.backwardThreshold,
+            energyWeight: parseFloat(document.getElementById('cfg-energy').value),
             structuralMutationRate: parseFloat(document.getElementById('cfg-structural').value),
             startingPoints: parseInt(document.getElementById('cfg-points').value, 10) || DEFAULTS.startingPoints,
             startingMuscles: parseInt(document.getElementById('cfg-muscles').value, 10) || DEFAULTS.startingMuscles,
