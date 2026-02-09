@@ -4,6 +4,11 @@
 
 Evolves virtual stick creatures that learn to walk across procedural terrain using a genetic algorithm with Verlet integration physics.
 
+https://github.com/user-attachments/assets/96a5829c-ff2d-4911-aa9e-276ca29b91e6
+
+<img width="895" height="784" alt="Capture" src="https://github.com/user-attachments/assets/50750b67-33de-4100-8afa-f9a9db130f4a" />
+
+
 ## Quick Start
 
 ```bash
