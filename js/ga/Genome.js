@@ -1,5 +1,7 @@
 // Genome schema, random creation, clone, validate, serialize
 
+import { assembleModularCreature } from './Modules.js';
+
 export const LIMITS = {
     bodyWidth:  { min: 20, max: 200 },
     bodyHeight: { min: 20, max: 200 },
@@ -11,8 +13,9 @@ export const LIMITS = {
     frequency:  { min: 0.2, max: 5.0 },
     phase:      { min: 0, max: Math.PI * 2 },
     strength:   { min: 0.005, max: 0.1 },
+    pointMass:  { min: 0.5, max: 5.0 },
     minPoints:  3,
-    maxPoints:  10,
+    maxPoints:  16,
     minConstraints: 2,
     minMuscles: 1
 };
@@ -28,6 +31,11 @@ export function randomCreatureSize(rng) {
 }
 
 export function createRandomGenome(rng, rawNumPoints, rawNumMuscles) {
+    // 70% modular creatures, 30% legacy random (preserves exploration of novel topologies)
+    if (rng.random() < 0.70) {
+        return assembleModularCreature(rng);
+    }
+
     const numPoints = Math.max(LIMITS.minPoints, rawNumPoints || 5);
     const numMuscles = Math.max(LIMITS.minMuscles, rawNumMuscles || 3);
 
@@ -64,24 +72,29 @@ export function createRandomGenome(rng, rawNumPoints, rawNumMuscles) {
                 // Upper 50% — body mass
                 ry = rng.random() * 0.5;
             }
-            points.push({ rx, ry });
+            // Heavy upper body (ry>0.5 = top half), light feet
+            const mass = ry > 0.5 ? rng.range(1.5, 3.5) : rng.range(0.5, 1.5);
+            points.push({ rx, ry, mass });
         }
     } else if (placementRoll < 0.50) {
         // Symmetric left-right: points in mirrored pairs
         for (let i = 0; i < numPoints; i += 2) {
             const rx = rng.range(0.5, 1.0);
             const ry = rng.random();
-            points.push({ rx, ry });
+            const mass = ry > 0.5 ? rng.range(1.5, 3.5) : rng.range(0.5, 1.5);
+            points.push({ rx, ry, mass });
             if (i + 1 < numPoints) {
-                points.push({ rx: 1.0 - rx, ry });
+                points.push({ rx: 1.0 - rx, ry, mass });
             }
         }
     } else {
         // Uniform random — existing behavior
         for (let i = 0; i < numPoints; i++) {
+            const ry = rng.random();
             points.push({
                 rx: rng.random(),
-                ry: rng.random()
+                ry,
+                mass: ry > 0.5 ? rng.range(1.5, 3.5) : rng.range(0.5, 1.5)
             });
         }
     }
@@ -125,13 +138,21 @@ export function createRandomGenome(rng, rawNumPoints, rawNumMuscles) {
             (m.a === a && m.b === b) || (m.a === b && m.b === a)
         );
         if (!exists) {
+            // Waveform: 60% sine, 25% sawtooth, 15% square
+            const wRoll = rng.random();
+            const waveform = wRoll < 0.60 ? 0 : wRoll < 0.85 ? 1 : 2;
+            // Activation: 40% always, 40% grounded, 20% airborne
+            const aRoll = rng.random();
+            const activationMode = aRoll < 0.40 ? 0 : aRoll < 0.80 ? 1 : 2;
             muscles.push({
                 a, b,
                 extensionFactor: rng.range(0.1, 0.35),
                 contractionFactor: rng.range(0.1, 0.35),
                 frequency: rng.range(0.5, 3.0),
                 phase: rng.range(0, Math.PI * 2),
-                strength: rng.range(0.01, 0.05)
+                strength: rng.range(0.01, 0.05),
+                waveform,
+                activationMode
             });
         }
     }
@@ -144,7 +165,9 @@ export function createRandomGenome(rng, rawNumPoints, rawNumMuscles) {
             contractionFactor: 0.3,
             frequency: 1.5,
             phase: 0,
-            strength: 0.02
+            strength: 0.02,
+            waveform: 0,
+            activationMode: 0
         });
     }
 
@@ -183,13 +206,15 @@ export function validateGenome(genome) {
 
     // Ensure minimum points
     while (genome.points.length < L.minPoints) {
-        genome.points.push({ rx: 0.5, ry: 0.5 });
+        genome.points.push({ rx: 0.5, ry: 0.5, mass: 1.0 });
     }
 
-    // Clamp point positions
+    // Clamp point positions and mass
     for (const p of genome.points) {
         p.rx = clamp(p.rx, L.pointRx.min, L.pointRx.max);
         p.ry = clamp(p.ry, L.pointRy.min, L.pointRy.max);
+        if (p.mass === undefined) p.mass = 1.0;
+        p.mass = clamp(p.mass, L.pointMass.min, L.pointMass.max);
     }
 
     const numPts = genome.points.length;
@@ -225,6 +250,11 @@ export function validateGenome(genome) {
         m.frequency         = clamp(m.frequency,         L.frequency.min,         L.frequency.max);
         m.phase             = ((m.phase % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
         m.strength          = clamp(m.strength,          L.strength.min,          L.strength.max);
+        // Default new genome fields for backward compatibility
+        if (m.waveform === undefined) m.waveform = 0;
+        m.waveform = clamp(Math.floor(m.waveform), 0, 2);
+        if (m.activationMode === undefined) m.activationMode = 0;
+        m.activationMode = clamp(Math.floor(m.activationMode), 0, 2);
     }
 
     // Ensure minimum muscles

@@ -1,4 +1,6 @@
 import { loadState } from './Persistence.js';
+import { listCreatures, loadCreature } from './CreatureLibrary.js';
+import { getPresetNames, createPresetGenome } from '../ga/Presets.js';
 
 const DEFAULTS = {
     populationSize: 12,
@@ -7,14 +9,16 @@ const DEFAULTS = {
     stallTimeout: 3,
     backwardThreshold: 30,  // px behind maxX to trigger backward stall
     energyWeight: 0,            // 0=disabled, higher=more penalty for energy use
+    speedBonus: 0,              // 0=disabled, higher=more reward for speed
     structuralMutationRate: 1,  // multiplier: 0=off, 1=normal, 5=aggressive
     worldType: 'hills',
     terrainSeed: Math.floor(Math.random() * 100000)
 };
 
 export default class ConfigScreen {
-    constructor(onStart) {
+    constructor(onStart, onOpenCreator) {
         this.onStart = onStart;
+        this.onOpenCreator = onOpenCreator;
         this.container = document.getElementById('config-screen');
         this.savedState = loadState();
         this._build();
@@ -23,6 +27,10 @@ export default class ConfigScreen {
     _build() {
         const saved = this.savedState;
         const d = DEFAULTS;
+
+        // Collect all seedable creatures: library + presets
+        const libCreatures = listCreatures();
+        const presetNames = getPresetNames();
 
         this.container.innerHTML = `
             <div class="config-panel">
@@ -59,6 +67,13 @@ export default class ConfigScreen {
                         </div>
                     </label>
                     <label>
+                        <span>Speed Bonus</span>
+                        <div class="slider-group">
+                            <input type="range" id="cfg-speed" value="${d.speedBonus}" min="0" max="1" step="0.1">
+                            <span id="cfg-speed-val">${d.speedBonus}</span>
+                        </div>
+                    </label>
+                    <label>
                         <span>Structural Mutation</span>
                         <div class="slider-group">
                             <input type="range" id="cfg-structural" value="${d.structuralMutationRate}" min="0" max="5" step="0.5">
@@ -83,9 +98,11 @@ export default class ConfigScreen {
                         <input type="file" id="cfg-import" accept=".json">
                     </label>
                 </div>
+                ${this._buildSeedSection(libCreatures, presetNames)}
                 <div class="config-buttons">
+                    <button id="cfg-creator">Creature Creator</button>
                     <button id="cfg-start">Start New</button>
-                    ${saved ? `<button id="cfg-resume">Resume (Gen ${  saved.generation  })</button>` : ''}
+                    ${saved ? `<button id="cfg-resume">Resume (Gen ${saved.generation})</button>` : ''}
                 </div>
             </div>
         `;
@@ -106,6 +123,11 @@ export default class ConfigScreen {
             this._handleImport(e);
         });
 
+        document.getElementById('cfg-creator').addEventListener('click', () => {
+            this.hide();
+            if (this.onOpenCreator) this.onOpenCreator();
+        });
+
         // Toggle eval time visibility based on mode
         document.getElementById('cfg-eval-mode').addEventListener('change', (e) => {
             document.getElementById('eval-time-row').style.display =
@@ -116,9 +138,33 @@ export default class ConfigScreen {
         document.getElementById('cfg-energy').addEventListener('input', (e) => {
             document.getElementById('cfg-energy-val').textContent = e.target.value;
         });
+        document.getElementById('cfg-speed').addEventListener('input', (e) => {
+            document.getElementById('cfg-speed-val').textContent = e.target.value;
+        });
         document.getElementById('cfg-structural').addEventListener('input', (e) => {
             document.getElementById('cfg-structural-val').textContent = `${e.target.value}x`;
         });
+    }
+
+    _buildSeedSection(libCreatures, presetNames) {
+        const allSeeds = [
+            ...presetNames.map(n => ({ name: n, source: 'preset' })),
+            ...libCreatures.map(c => ({ name: c.name, source: 'library' }))
+        ];
+        if (allSeeds.length === 0) return '';
+
+        const checkboxes = allSeeds.map(s => {
+            const label = s.source === 'preset' ? `${s.name} (preset)` : s.name;
+            const val = `${s.source}:${s.name}`;
+            return `<label><input type="checkbox" class="seed-cb" value="${val}"> ${label}</label>`;
+        }).join('');
+
+        return `
+            <div class="config-seed-section">
+                <h4>Seed Creatures</h4>
+                <div class="seed-creature-list">${checkboxes}</div>
+            </div>
+        `;
     }
 
     _getConfig() {
@@ -130,16 +176,36 @@ export default class ConfigScreen {
             stallTimeout: parseInt(document.getElementById('cfg-stall').value, 10) || DEFAULTS.stallTimeout,
             backwardThreshold: parseInt(document.getElementById('cfg-backward').value, 10) || DEFAULTS.backwardThreshold,
             energyWeight: parseFloat(document.getElementById('cfg-energy').value),
+            speedBonus: parseFloat(document.getElementById('cfg-speed').value),
             structuralMutationRate: parseFloat(document.getElementById('cfg-structural').value),
             worldType: document.getElementById('cfg-world-type').value || DEFAULTS.worldType,
             terrainSeed: parseInt(document.getElementById('cfg-seed').value, 10) || DEFAULTS.terrainSeed
         };
     }
 
+    _getSelectedSeeds() {
+        const checkboxes = this.container.querySelectorAll('.seed-cb:checked');
+        const genomes = [];
+        for (const cb of checkboxes) {
+            const colonIdx = cb.value.indexOf(':');
+            const source = cb.value.slice(0, colonIdx);
+            const name = cb.value.slice(colonIdx + 1);
+            let genome = null;
+            if (source === 'preset') {
+                genome = createPresetGenome(name);
+            } else {
+                genome = loadCreature(name);
+            }
+            if (genome) genomes.push(genome);
+        }
+        return genomes;
+    }
+
     _startNew() {
         const config = this._getConfig();
+        const seedGenomes = this._getSelectedSeeds();
         this.hide();
-        this.onStart({ mode: 'new', config });
+        this.onStart({ mode: 'new', config, seedGenomes: seedGenomes.length > 0 ? seedGenomes : null });
     }
 
     _resume() {
@@ -157,7 +223,7 @@ export default class ConfigScreen {
                 this.hide();
                 this.onStart({ mode: 'resume', savedState: imported, config: imported.config });
             } catch (err) {
-                alert(`Invalid JSON file: ${  err.message}`);
+                alert(`Invalid JSON file: ${err.message}`);
             }
         };
         reader.readAsText(file);

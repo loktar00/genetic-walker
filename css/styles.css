@@ -11,29 +11,6 @@ main {
 	flex-direction: column;
 }
 
-.creator{
-	width:620px;
-	margin-bottom:50px;
-}
-
-.controls{float: right;}
-
-ul{
-	float:left;
-	list-style:none;
-	margin:0;
-	padding:0;
-}
-input[type=button]{
-    background: #ccc;
-    border:1px solid #ececec;
-    min-width:150px;
-}
-input[type=button].active{
-    background: green;
-    color:white;
-}
-
 canvas{
 	background: #fff;
 	display: block;
@@ -42,17 +19,6 @@ canvas{
 	background: #000;
 	width: 100%;
 	cursor: pointer;
-}
-
-
-.cf:before,
-.cf:after {
-    content: " ";
-    display: table;
-}
-
-.cf:after {
-    clear: both;
 }
 
 /* Config Screen */
@@ -145,6 +111,7 @@ canvas{
 	display: flex;
 	gap: 10px;
 	justify-content: center;
+	flex-wrap: wrap;
 }
 
 .config-buttons button {
@@ -161,6 +128,33 @@ canvas{
 
 .config-buttons button:hover {
 	background: #0f6a0f;
+}
+
+/* Seed creature selection */
+.config-seed-section {
+	margin-bottom: 16px;
+}
+.config-seed-section h4 {
+	margin: 0 0 6px 0;
+	color: #0f0;
+	font-size: 13px;
+	font-weight: normal;
+}
+.seed-creature-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.seed-creature-list label {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 12px;
+	color: #ccc;
+	cursor: pointer;
+}
+.seed-creature-list input[type="checkbox"] {
+	accent-color: #0f0;
 }
 
 /* Simulation controls bar */
@@ -188,4 +182,188 @@ canvas{
 .sim-controls button.active {
 	background: #0a4a0a;
 	border-color: #0f0;
+}
+
+/* Creature Creator */
+#creature-creator {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: #000;
+	z-index: 200;
+}
+
+.creator-layout {
+	display: flex;
+	height: 100%;
+}
+
+.creator-toolbar {
+	width: 180px;
+	background: #0d0d1a;
+	border-right: 1px solid #333;
+	padding: 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	overflow-y: auto;
+}
+
+.creator-toolbar h3 {
+	margin: 10px 0 4px 0;
+	font-size: 11px;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+
+.creator-toolbar h3:first-child {
+	margin-top: 0;
+}
+
+.creator-toolbar button,
+.creator-toolbar select {
+	width: 100%;
+	padding: 6px 8px;
+	font-size: 12px;
+	font-family: 'Raleway', sans-serif;
+	border-radius: 3px;
+	cursor: pointer;
+	border: 1px solid #444;
+	background: #1a1a2e;
+	color: #ccc;
+}
+
+.creator-toolbar button:hover,
+.creator-toolbar select:hover {
+	background: #2a2a4e;
+}
+
+.creator-toolbar .tool-btn.active {
+	background: #0a4a0a;
+	color: #0f0;
+	border-color: #0f0;
+}
+
+.creator-toolbar .cc-back-btn {
+	background: #4a0a0a;
+	color: #f66;
+	border-color: #f66;
+	margin-top: 8px;
+}
+
+.creator-toolbar .cc-back-btn:hover {
+	background: #6a0f0f;
+}
+
+.creator-toolbar-spacer {
+	flex: 1;
+}
+
+.cc-import-label {
+	display: block;
+	width: 100%;
+	padding: 6px 8px;
+	font-size: 12px;
+	border-radius: 3px;
+	cursor: pointer;
+	border: 1px solid #444;
+	background: #1a1a2e;
+	color: #ccc;
+	text-align: center;
+	box-sizing: border-box;
+}
+
+.cc-import-label:hover {
+	background: #2a2a4e;
+}
+
+.cc-import-label input[type="file"] {
+	display: none;
+}
+
+.creator-canvas-wrap {
+	flex: 1;
+	position: relative;
+	overflow: hidden;
+}
+
+.creator-canvas-wrap canvas {
+	display: block;
+	width: 100%;
+	height: calc(100% - 24px);
+	background: #111;
+}
+
+.cc-hint {
+	height: 24px;
+	line-height: 24px;
+	padding: 0 12px;
+	font-size: 12px;
+	color: #888;
+	background: #0a0a15;
+	border-top: 1px solid #222;
+}
+
+.creator-properties {
+	width: 220px;
+	background: #0d0d1a;
+	border-left: 1px solid #333;
+	padding: 12px;
+	overflow-y: auto;
+}
+
+.creator-properties h3 {
+	margin: 10px 0 6px 0;
+	font-size: 11px;
+	color: #888;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+}
+
+.creator-properties h3:first-child {
+	margin-top: 0;
+}
+
+.creator-properties label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: #ccc;
+	margin-bottom: 6px;
+}
+
+.creator-properties input[type="text"],
+.creator-properties input[type="number"] {
+	flex: 1;
+	background: #0d0d1a;
+	border: 1px solid #555;
+	color: #0f0;
+	padding: 3px 6px;
+	font-family: monospace;
+	font-size: 12px;
+	border-radius: 3px;
+}
+
+.creator-properties input[type="range"] {
+	flex: 1;
+	accent-color: #0f0;
+	min-width: 0;
+}
+
+.creator-properties span {
+	font-family: monospace;
+	font-size: 11px;
+	color: #0f0;
+	min-width: 32px;
+	text-align: right;
+}
+
+.cc-stats {
+	margin-top: 16px;
+	font-size: 11px;
+	color: #666;
 }

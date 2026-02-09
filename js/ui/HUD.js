@@ -62,8 +62,16 @@ export default class HUD {
                 bottomText += ` (${eff.toFixed(1)} eff)`;
             }
         }
+        if (sim.config.speedBonus > 0) {
+            const bestIdx = sim.getGenBestIndex();
+            if (bestIdx >= 0 && sim.bodyStates[bestIdx].avgSpeed) {
+                bottomText += ` @ ${sim.bodyStates[bestIdx].avgSpeed.toFixed(1)}px/s`;
+            }
+        }
         bottomText += `  |  All-time: ${Math.round(allTimeBest)}px  |  Mutation rate: ${baseRate}x`;
         if (mutBoost > 1) {bottomText += `→${effectiveRate}x`;}
+        const speciesSet = new Set(sim.genomes.map(g => g.points.length));
+        bottomText += `  |  Species: ${speciesSet.size}`;
         if (stag > 0) {bottomText += `  |  Stagnation: ${stag}`;}
         if (stag > 0 && stag % 50 === 0) {bottomText += '  EXTINCTION';}
         ctx.fillText(bottomText, 8, World.bounds.height - 30);

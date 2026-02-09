@@ -1,5 +1,5 @@
 import { createRNG } from '../utils/random.js';
-import { createRandomGenome, randomCreatureSize, cloneGenome } from './Genome.js';
+import { createRandomGenome, randomCreatureSize, cloneGenome, validateGenome } from './Genome.js';
 import { nextGeneration } from './Selection.js';
 import VerletBody from '../verlet/Verlet.js';
 import { saveState } from '../ui/Persistence.js';
@@ -21,9 +21,22 @@ export default class SimulationManager {
         this.spawnX = 100;
     }
 
-    initNewPopulation() {
+    initNewPopulation(seedGenomes) {
         this.genomes = [];
-        for (let i = 0; i < this.config.populationSize; i++) {
+        this.seedCount = 0;
+        if (seedGenomes) {
+            for (const sg of seedGenomes) {
+                if (this.genomes.length < this.config.populationSize) {
+                    this.genomes.push(validateGenome(cloneGenome(sg)));
+                    this.seedCount++;
+                }
+            }
+        }
+        if (this.seedCount > 0) {
+            // eslint-disable-next-line no-console
+            console.log(`Seeded ${this.seedCount} creature(s) into population`);
+        }
+        while (this.genomes.length < this.config.populationSize) {
             const { numPts, numMus } = randomCreatureSize(this.rng);
             this.genomes.push(createRandomGenome(this.rng, numPts, numMus));
         }
@@ -49,11 +62,15 @@ export default class SimulationManager {
         this.elapsedTime = 0;
         this.state = 'RUNNING';
 
+        const seedCount = this.seedCount || 0;
+
         for (let i = 0; i < genomes.length; i++) {
+            const isSeeded = this.generation === 0 && i < seedCount;
             const hue = (i / genomes.length) * 360;
-            const color = `hsl(${hue}, 80%, 60%)`;
+            const color = isSeeded ? '#fff' : `hsl(${hue}, 80%, 60%)`;
             const body = new VerletBody(genomes[i], this.spawnX, undefined, color);
-            body._muscleColor = `hsl(${hue}, 80%, 40%)`;
+            body._muscleColor = isSeeded ? '#ff0' : `hsl(${hue}, 80%, 40%)`;
+            body._isSeeded = isSeeded;
             this.bodies.push(body);
 
             const com = body.getCOM();
@@ -107,10 +124,10 @@ export default class SimulationManager {
             const timeSinceProgress = this.elapsedTime - state.lastProgressTime;
             const isStalled = timeSinceProgress > this.config.stallTimeout;
 
-            // Minimum speed check: every 2 seconds, measure forward speed.
-            // If below 10 px/s, finish immediately — the 2s window is the grace period.
-            const speedCheckInterval = 2;
-            const minSpeed = 10; // px/s
+            // Minimum speed check: every 3 seconds, measure forward speed.
+            // If below 5 px/s, finish immediately — the 3s window is the grace period.
+            const speedCheckInterval = 3;
+            const minSpeed = 5; // px/s
             const timeSinceSpeedCheck = this.elapsedTime - state.lastSpeedCheckTime;
             if (timeSinceSpeedCheck >= speedCheckInterval) {
                 const dx = state.currentX - state.lastSpeedCheckX;
@@ -156,10 +173,16 @@ export default class SimulationManager {
         const state = this.bodyStates[index];
         const body = this.bodies[index];
         state.finished = true;
+        state.aliveTime = this.elapsedTime;
         const distance = Math.max(0, state.maxX - state.startX);
         const energy = body.totalEnergy;
         const weight = this.config.energyWeight || 0;
-        let fitness = distance / (1 + energy * weight);
+        const avgSpeed = distance / Math.max(state.aliveTime, 0.1);
+        state.avgSpeed = avgSpeed;
+        const speedBonus = this.config.speedBonus || 0;
+        const speedThreshold = 10; // px/s baseline
+        const speedMult = 1 + speedBonus * Math.max(0, avgSpeed - speedThreshold) / speedThreshold;
+        let fitness = (distance * speedMult) / (1 + energy * weight);
         if (!Number.isFinite(fitness)) {fitness = 0;}
         state.fitness = fitness;
         state.distance = distance;
@@ -183,8 +206,16 @@ export default class SimulationManager {
             avg: Math.round(genAvg)
         });
 
-        // Update all-time best + stagnation tracking
+        // Store replay data for best creature this generation
         const bestIdx = fitnesses.indexOf(genBest);
+        this.lastGenBestReplay = {
+            genome: cloneGenome(this.genomes[bestIdx]),
+            fitness: this.bodyStates[bestIdx].fitness,
+            generation: this.generation,
+            spawnX: this.spawnX
+        };
+
+        // Update all-time best + stagnation tracking
         if (genBest > this.bestFitness) {
             this.bestFitness = genBest;
             this.bestGenome = cloneGenome(this.genomes[bestIdx]);

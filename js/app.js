@@ -2,7 +2,9 @@ import World from './verlet/World.js';
 import Terrain from './verlet/Terrain.js';
 import SimulationManager from './ga/SimulationManager.js';
 import ConfigScreen from './ui/ConfigScreen.js';
+import CreatureCreator from './ui/CreatureCreator.js';
 import HUD from './ui/HUD.js';
+import VerletBody from './verlet/Verlet.js';
 import { exportJSON } from './ui/Persistence.js';
 
 const canvas = World.canvas;
@@ -15,6 +17,13 @@ let terrain = null;
 let lastTime = 0;
 let accumulator = 0;
 let running = false;
+
+// Replay mode state
+let replayMode = false;
+let replayBody = null;
+let replayElapsed = 0;
+let replayStartX = 0;
+let savedSpeedMultiplier = 1;
 
 // Append canvas to page
 document.querySelector('main').appendChild(canvas);
@@ -34,6 +43,7 @@ controlsBar.innerHTML = `
     <button id="btn-100x">100x</button>
     <button id="btn-250x">250x</button>
     <button id="btn-1000x">1000x</button>
+    <button id="btn-replay">Replay Best</button>
     <button id="btn-export">Export</button>
     <button id="btn-restart">New Run</button>
 `;
@@ -45,9 +55,16 @@ window.addEventListener('resize', () => {
 });
 
 // Show config screen
-const configScreen = new ConfigScreen(handleStart);
+const configScreen = new ConfigScreen(handleStart, handleOpenCreator);
 
-function handleStart({ mode, config, savedState }) {
+function handleOpenCreator() {
+    new CreatureCreator(() => {
+        // On close: return to config screen
+        configScreen.show();
+    });
+}
+
+function handleStart({ mode, config, savedState, seedGenomes }) {
     // Setup terrain
     terrain = new Terrain(config.terrainSeed, config.worldType);
     World.terrain = terrain;
@@ -60,7 +77,7 @@ function handleStart({ mode, config, savedState }) {
     if (mode === 'resume' && savedState) {
         simManager.resumeFromState(savedState);
     } else {
-        simManager.initNewPopulation();
+        simManager.initNewPopulation(seedGenomes || null);
     }
 
     // Show controls
@@ -70,6 +87,31 @@ function handleStart({ mode, config, savedState }) {
     accumulator = 0;
 
     requestAnimationFrame(gameLoop);
+}
+
+function enterReplayMode() {
+    if (!simManager || !simManager.lastGenBestReplay) return;
+    const replay = simManager.lastGenBestReplay;
+    savedSpeedMultiplier = World.speedMultiplier;
+    World.speedMultiplier = 1;
+    setSpeed(1);
+    replayBody = new VerletBody(replay.genome, replay.spawnX, undefined, '#ffd700');
+    replayBody._muscleColor = '#ff8c00';
+    const com = replayBody.getCOM();
+    replayStartX = com.x;
+    replayElapsed = 0;
+    replayMode = true;
+    World.cameraX = 0;
+    World.cameraY = 0;
+    document.getElementById('btn-replay').textContent = 'Exit Replay';
+}
+
+function exitReplayMode() {
+    replayMode = false;
+    replayBody = null;
+    World.speedMultiplier = savedSpeedMultiplier;
+    setSpeed(savedSpeedMultiplier);
+    document.getElementById('btn-replay').textContent = 'Replay Best';
 }
 
 function gameLoop(timestamp) {
@@ -85,6 +127,56 @@ function gameLoop(timestamp) {
     lastTime = timestamp;
 
     if (frameTime > 0.1) {frameTime = 0.1;}
+
+    if (replayMode) {
+        // Replay mode: single body at 1x
+        accumulator += frameTime;
+        while (accumulator >= dt) {
+            if (replayBody && !replayBody.frozen) {
+                replayBody.update(dt);
+                replayElapsed += dt;
+            }
+            accumulator -= dt;
+        }
+
+        // Camera follows replay body
+        if (replayBody) {
+            const com = replayBody.getCOM();
+            const targetX = com.x - World.bounds.width / 3;
+            const targetY = com.y - World.bounds.height * 0.6;
+            World.cameraX += (targetX - World.cameraX) * 0.08;
+            World.cameraY += (targetY - World.cameraY) * 0.08;
+            World.cameraX = Math.max(0, World.cameraX);
+        }
+
+        // Render
+        ctx.clearRect(0, 0, World.bounds.width, World.bounds.height);
+        ctx.save();
+        ctx.translate(-World.cameraX, -World.cameraY);
+        terrain.render();
+        if (replayBody) replayBody.render();
+        ctx.restore();
+
+        // Replay HUD overlay
+        const w = World.bounds.width;
+        ctx.save();
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, w, 28);
+        ctx.font = '13px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#ffd700';
+        const replay = simManager.lastGenBestReplay;
+        const dist = replayBody ? Math.max(0, replayBody.getCOM().x - replayStartX) : 0;
+        const speed = replayElapsed > 0 ? (dist / replayElapsed) : 0;
+        ctx.fillText(
+            `REPLAY  |  Gen ${replay.generation} Best  |  Distance: ${Math.round(dist)}px  |  Speed: ${speed.toFixed(1)} px/s  |  [ESC to exit]`,
+            8, 18
+        );
+        ctx.restore();
+
+        requestAnimationFrame(gameLoop);
+        return;
+    }
 
     if (!hud.paused) {
         accumulator += frameTime;
@@ -148,6 +240,13 @@ canvas.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
     if (!hud) {return;}
 
+    if (e.key === 'Escape' && replayMode) {
+        exitReplayMode();
+        return;
+    }
+
+    if (replayMode) return;
+
     switch (e.key) {
         case ' ':
             e.preventDefault();
@@ -197,7 +296,15 @@ document.addEventListener('click', (e) => {
         case 'btn-100x': setSpeed(100); break;
         case 'btn-250x': setSpeed(250); break;
         case 'btn-1000x': setSpeed(1000); break;
+        case 'btn-replay':
+            if (replayMode) {
+                exitReplayMode();
+            } else {
+                enterReplayMode();
+            }
+            break;
         case 'btn-export':
+            if (replayMode) break;
             if (simManager) {
                 exportJSON({
                     config: simManager.config,
@@ -211,6 +318,7 @@ document.addEventListener('click', (e) => {
             }
             break;
         case 'btn-restart':
+            if (replayMode) exitReplayMode();
             running = false;
             controlsBar.style.display = 'none';
             World.speedMultiplier = 1;

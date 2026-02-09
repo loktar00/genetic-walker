@@ -31,6 +31,7 @@ export function crossover(parentA, parentB, fitA, fitB, rng, structuralRate, par
         const pt = rng.range(0.2, 0.8);
         child.points[i].rx = lerp(child.points[i].rx, other.points[i].rx, pt);
         child.points[i].ry = lerp(child.points[i].ry, other.points[i].ry, pt);
+        child.points[i].mass = lerp(child.points[i].mass || 1.0, other.points[i].mass || 1.0, pt);
     }
 
     // Blend overlapping constraint stiffness
