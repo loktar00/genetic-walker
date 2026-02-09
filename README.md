@@ -1,5 +1,7 @@
 # Genetic Walker
 
+**[Live Demo](https://loktar00.github.io/genetic-walker/)**
+
 Evolves virtual stick creatures that learn to walk across procedural terrain using a genetic algorithm with Verlet integration physics.
 
 ## Quick Start
@@ -28,6 +30,8 @@ Open the local URL and configure your simulation parameters, then hit **Start Ne
 - **Modular body assembly** — creatures built from composable modules (leg pairs, hubs, wheels, etc.)
 - **Seed creatures** — inject hand-designed or preset creatures into the initial population
 - **Speed bonus** — optional fitness component rewarding faster movement
+- **Combat mode** [Beta] — enemies spawn from milestone generations, per-creature independent encounters
+- **Split view** — grid of mini-viewports showing each creature simultaneously
 - **Replay mode** — watch the best creature from the last generation in isolation
 - **Save/load** — auto-saves to localStorage, import/export as JSON
 - **Speed controls** — 1x to 1000x simulation speed
@@ -38,6 +42,9 @@ Open the local URL and configure your simulation parameters, then hit **Start Ne
 |-----|--------|
 | Space | Pause/resume |
 | 1-5, 0 | Speed multiplier |
+| Arrow Left/Right | Cycle creatures |
+| C | Auto camera |
+| S | Toggle split view |
 | ESC | Exit replay mode |
 
 ## Build

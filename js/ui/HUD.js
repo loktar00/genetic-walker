@@ -28,16 +28,32 @@ export default class HUD {
 
         ctx.fillStyle = '#0f0';
         ctx.textAlign = 'left';
-        ctx.fillText(
-            `Gen: ${sim.generation}  |  Alive: ${alive}/${total}  |  ${timeDisplay}`,
-            8, 18
-        );
 
-        // Top-right: Speed + Pause
+        let topText = `Gen: ${sim.generation}  |  Alive: ${alive}/${total}  |  ${timeDisplay}`;
+
+        // Gauntlet stats
+        const parts = [];
+        if (sim.config.foodEnabled !== false && sim.genFoodCollected > 0) {
+            parts.push(`Food: ${sim.genFoodCollected}`);
+        }
+        if (sim.config.combatEnabled !== false && sim.enemyMilestones && sim.enemyMilestones.length > 0) {
+            parts.push(`Milestones: ${sim.enemyMilestones.length}`);
+        }
+        if (sim.genKOs > 0) {
+            parts.push(`KOs: ${sim.genKOs}`);
+        }
+        if (parts.length > 0) {
+            topText += '  |  ' + parts.join('  ');
+        }
+
+        ctx.fillText(topText, 8, 18);
+
+        // Top-right: Speed + Pause + Camera mode
         ctx.textAlign = 'right';
         const speedLabel = this.paused ? 'PAUSED' : `${World.speedMultiplier}x`;
         ctx.fillStyle = this.paused ? '#f55' : '#0f0';
-        ctx.fillText(`[${speedLabel}]`, w - 8, 18);
+        const pxLabel = World.pixelScale > 1 ? ` PX${World.pixelScale}` : '';
+        ctx.fillText(`[${speedLabel}]${pxLabel}`, w - 8, 18);
 
         // Bottom bar background
         ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
@@ -72,6 +88,9 @@ export default class HUD {
         if (mutBoost > 1) {bottomText += `→${effectiveRate}x`;}
         const speciesSet = new Set(sim.genomes.map(g => g.points.length));
         bottomText += `  |  Species: ${speciesSet.size}`;
+        if (sim.hallOfFame && sim.hallOfFame.length > 0) {
+            bottomText += `  |  HoF: ${sim.hallOfFame.length}`;
+        }
         if (stag > 0) {bottomText += `  |  Stagnation: ${stag}`;}
         if (stag > 0 && stag % 50 === 0) {bottomText += '  EXTINCTION';}
         ctx.fillText(bottomText, 8, World.bounds.height - 30);

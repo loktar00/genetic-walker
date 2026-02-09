@@ -26,7 +26,8 @@ export function saveState(state) {
             bestGenome: state.bestGenome,
             bestFitness: state.bestFitness,
             history: state.history,
-            rngState: state.rngState
+            rngState: state.rngState,
+            enemyMilestones: state.enemyMilestones || []
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
@@ -41,6 +42,7 @@ export function loadState() {
         const data = JSON.parse(raw);
         if (data.version !== 1) {return null;}
         data.config = deserializeConfig(data.config);
+        data.enemyMilestones = data.enemyMilestones || [];
         return data;
     } catch (e) {
         console.warn('Failed to load state:', e);
@@ -61,7 +63,8 @@ export function exportJSON(state) {
         bestGenome: state.bestGenome,
         bestFitness: state.bestFitness,
         history: state.history,
-        rngState: state.rngState
+        rngState: state.rngState,
+        enemyMilestones: state.enemyMilestones || []
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -78,5 +81,6 @@ export function importJSON(jsonString) {
     const data = JSON.parse(jsonString);
     if (data.version !== 1) {throw new Error('Unknown save version');}
     data.config = deserializeConfig(data.config);
+    data.enemyMilestones = data.enemyMilestones || [];
     return data;
 }

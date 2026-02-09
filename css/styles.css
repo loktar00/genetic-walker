@@ -184,6 +184,35 @@ canvas{
 	border-color: #0f0;
 }
 
+.sim-controls .controls-sep {
+	color: #444;
+	line-height: 28px;
+	font-size: 14px;
+	user-select: none;
+}
+
+.sim-controls .px-btn {
+	color: #8af;
+	border-color: #558;
+}
+
+.sim-controls .px-btn.active {
+	background: #0a2a5a;
+	border-color: #8af;
+	color: #8af;
+}
+
+.sim-controls .split-btn {
+	color: #fa8;
+	border-color: #854;
+}
+
+.sim-controls .split-btn.active {
+	background: #5a2a0a;
+	border-color: #fa8;
+	color: #fa8;
+}
+
 /* Creature Creator */
 #creature-creator {
 	position: fixed;

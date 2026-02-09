@@ -93,6 +93,28 @@ export default class ConfigScreen {
                         <span>Terrain Seed</span>
                         <input type="number" id="cfg-seed" value="${d.terrainSeed}">
                     </label>
+                    <label>
+                        <span>Food (Berries)</span>
+                        <select id="cfg-food">
+                            <option value="on" selected>On</option>
+                            <option value="off">Off</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>Combat [Beta]</span>
+                        <select id="cfg-combat">
+                            <option value="off" selected>Off</option>
+                            <option value="on">On</option>
+                        </select>
+                    </label>
+                    <label id="enemy-diff-row">
+                        <span>Enemy Difficulty</span>
+                        <select id="cfg-enemy-diff">
+                            <option value="easy">Easy</option>
+                            <option value="normal" selected>Normal</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </label>
                     <label class="file-label">
                         <span>Import JSON</span>
                         <input type="file" id="cfg-import" accept=".json">
@@ -179,7 +201,10 @@ export default class ConfigScreen {
             speedBonus: parseFloat(document.getElementById('cfg-speed').value),
             structuralMutationRate: parseFloat(document.getElementById('cfg-structural').value),
             worldType: document.getElementById('cfg-world-type').value || DEFAULTS.worldType,
-            terrainSeed: parseInt(document.getElementById('cfg-seed').value, 10) || DEFAULTS.terrainSeed
+            terrainSeed: parseInt(document.getElementById('cfg-seed').value, 10) || DEFAULTS.terrainSeed,
+            foodEnabled: document.getElementById('cfg-food').value === 'on',
+            combatEnabled: document.getElementById('cfg-combat').value === 'on',
+            enemyDifficulty: document.getElementById('cfg-enemy-diff').value || 'normal'
         };
     }
 

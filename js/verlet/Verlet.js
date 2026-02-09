@@ -1,4 +1,6 @@
 import World from './World.js';
+import { renderPattern, computePatternParams } from './Patterns.js';
+import Particles from './Particles.js';
 
 export default class VerletBody {
     constructor(genome, spawnX, spawnY, color) {
@@ -8,12 +10,25 @@ export default class VerletBody {
         this.world = World;
         this.bounds = World.bounds;
         this.simSteps = World.simSteps;
-        this.ctx = World.ctx;
+        this.ctx = null; // resolved dynamically via World.gctx
         this.genome = genome || null;
         this.age = 0;
         this.totalEnergy = 0;
         this.frozen = false;
         this.color = color || 'rgb(0,255,0)';
+
+        // Eye tracking state
+        this._prevComX = 0;
+        this._prevComY = 0;
+        this._faceDirX = 1;
+        this._faceDirY = 0;
+
+        // Pattern cache (set in _buildFromGenome)
+        this._patternType = 'solid';
+        this._patternParams = null;
+
+        // Dust emission throttle (per-point frame counter)
+        this._dustFrame = 0;
 
         if (genome) {
             this._buildFromGenome(genome, spawnX || 100, spawnY);
@@ -55,6 +70,16 @@ export default class VerletBody {
                 );
             }
         }
+
+        // Compute pattern type from genome topology hash
+        const pp = computePatternParams(genome);
+        this._patternType = pp.type;
+        this._patternParams = pp;
+
+        // Init eye tracking from spawn position
+        const com = this.getCOM();
+        this._prevComX = com.x;
+        this._prevComY = com.y;
     }
 
     createPoint(x, y, vx, vy, mass) {
@@ -178,8 +203,15 @@ export default class VerletBody {
             if (terrain && point.x >= 0) {
                 const terrainY = terrain.getHeightAtX(point.x);
                 if (point.y > terrainY) {
+                    const impactVel = point.y - point.oy;
                     point.y = terrainY;
                     point.grounded = true;
+
+                    // Dust particles on hard ground impact
+                    if (impactVel > 3 && World.speedMultiplier <= 5 && this._dustFrame <= 0) {
+                        Particles.emitDust(point.x, terrainY, impactVel);
+                        this._dustFrame = 5;
+                    }
 
                     // Get edge for tangent/normal decomposition
                     const { edge } = terrain.getEdgeAtX(point.x);
@@ -383,52 +415,149 @@ export default class VerletBody {
     update(frameDt) {
         if (this.frozen) {return;}
         this.age += frameDt;
+        if (this._dustFrame > 0) this._dustFrame--;
         this.updateConstraints();         // solve structure first
         this.updatePointMass(frameDt);    // then integrate + collide
         this.resolveConstraintTerrain();  // constraint-terrain collision
+    }
+
+    _computeConvexHull() {
+        const pts = this.pointMass;
+        if (pts.length < 3) return pts.map(p => ({ x: p.x, y: p.y }));
+
+        // Jarvis march (gift wrapping) — fine for 3-12 points
+        let leftmost = 0;
+        for (let i = 1; i < pts.length; i++) {
+            if (pts[i].x < pts[leftmost].x ||
+                (pts[i].x === pts[leftmost].x && pts[i].y < pts[leftmost].y)) {
+                leftmost = i;
+            }
+        }
+
+        const hull = [];
+        let current = leftmost;
+        do {
+            hull.push({ x: pts[current].x, y: pts[current].y });
+            let next = 0;
+            for (let i = 1; i < pts.length; i++) {
+                if (next === current) { next = i; continue; }
+                const cross = (pts[i].x - pts[current].x) * (pts[next].y - pts[current].y) -
+                              (pts[i].y - pts[current].y) * (pts[next].x - pts[current].x);
+                if (cross < 0) next = i;
+                else if (cross === 0) {
+                    // Collinear: pick the farther point
+                    const di = (pts[i].x - pts[current].x) ** 2 + (pts[i].y - pts[current].y) ** 2;
+                    const dn = (pts[next].x - pts[current].x) ** 2 + (pts[next].y - pts[current].y) ** 2;
+                    if (di > dn) next = i;
+                }
+            }
+            current = next;
+        } while (current !== leftmost && hull.length < pts.length);
+
+        return hull;
     }
 
     render() {
         const pointMass = this.pointMass;
         const pointConstraints = this.pointConstraints;
         const pointMuscles = this.pointMuscles;
-        const ctx = this.ctx;
+        const ctx = World.gctx;
         const color = this.color;
         const thick = this._isSeeded && !this.frozen;
+        const speed = World.speedMultiplier;
+        const hue = this._hue || 0;
 
-        ctx.fillStyle = color;
-        ctx.strokeStyle = color;
-        ctx.lineWidth = thick ? 3 : 1;
+        // Convex hull body fill with top-lit gradient
+        let hull = null;
+        if (pointMass.length >= 3) {
+            hull = this._computeConvexHull();
 
-        for (let p = 0; p < pointMass.length; p++) {
-            const point = pointMass[p];
-            const r = (thick ? 4 : 2) * Math.sqrt(point.mass || 1);
+            // Find hull bounding box for gradient
+            let minHY = Infinity, maxHY = -Infinity;
+            for (let i = 0; i < hull.length; i++) {
+                if (hull[i].y < minHY) minHY = hull[i].y;
+                if (hull[i].y > maxHY) maxHY = hull[i].y;
+            }
+            // Guard against NaN/degenerate hulls
+            if (!isFinite(minHY) || !isFinite(maxHY) || minHY === maxHY) {
+                minHY = 0; maxHY = 1;
+            }
 
             ctx.beginPath();
-            ctx.arc(point.x, point.y, r, 0, Math.PI * 2);
+            ctx.moveTo(hull[0].x, hull[0].y);
+            for (let i = 1; i < hull.length; i++) {
+                ctx.lineTo(hull[i].x, hull[i].y);
+            }
             ctx.closePath();
+
+            if (this.isLeader && !this.frozen) {
+                // Leader glow with gradient
+                ctx.save();
+                ctx.shadowColor = 'rgba(255,255,100,0.5)';
+                ctx.shadowBlur = 20;
+                const lg = ctx.createLinearGradient(0, minHY, 0, maxHY);
+                lg.addColorStop(0, 'rgba(255,255,150,0.35)');
+                lg.addColorStop(1, 'rgba(200,180,50,0.35)');
+                ctx.fillStyle = lg;
+                ctx.fill();
+                ctx.restore();
+            } else if (this.frozen) {
+                const fg = ctx.createLinearGradient(0, minHY, 0, maxHY);
+                fg.addColorStop(0, 'rgba(140,140,140,0.12)');
+                fg.addColorStop(1, 'rgba(80,80,80,0.12)');
+                ctx.fillStyle = fg;
+                ctx.fill();
+            } else {
+                const bg = ctx.createLinearGradient(0, minHY, 0, maxHY);
+                bg.addColorStop(0, `hsla(${hue},60%,65%,0.30)`);
+                bg.addColorStop(1, `hsla(${hue},70%,35%,0.30)`);
+                ctx.fillStyle = bg;
+                ctx.fill();
+            }
+
+            // Subtle hull outline
+            ctx.beginPath();
+            ctx.moveTo(hull[0].x, hull[0].y);
+            for (let i = 1; i < hull.length; i++) {
+                ctx.lineTo(hull[i].x, hull[i].y);
+            }
+            ctx.closePath();
+            if (this.frozen) {
+                ctx.strokeStyle = 'rgba(80,80,80,0.15)';
+            } else {
+                ctx.strokeStyle = `hsla(${hue},50%,20%,0.4)`;
+            }
+            ctx.lineWidth = 1;
             ctx.stroke();
+
+            // Pattern overlay (skip at high speed or when frozen)
+            if (speed <= 10 && !this.frozen && this._patternType !== 'solid' && hull.length >= 3) {
+                renderPattern(ctx, hull, this._patternParams, this.color);
+            }
         }
+
+        // Rounded bones (organic limbs, not wireframe)
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = thick ? 2.5 : 1.5;
 
         for (let c = 0; c < pointConstraints.length; c++) {
             const constraint = pointConstraints[c];
-
             ctx.beginPath();
             ctx.moveTo(constraint.p1.x, constraint.p1.y);
             ctx.lineTo(constraint.p2.x, constraint.p2.y);
-            ctx.closePath();
             ctx.stroke();
         }
 
         // Muscles rendered with contraction-aware thickness/opacity
-        const muscleColor = this.frozen ? this.color : this._muscleColor || 'rgb(255,0,0)';
+        const muscleColor = this.frozen ? this.color : this._muscleColor || `hsl(${(hue + 20) % 360},85%,45%)`;
         ctx.strokeStyle = muscleColor;
-        const baseWidth = thick ? 3 : 1;
+        const baseWidth = thick ? 4 : 2;
         for (let c = 0; c < pointMuscles.length; c++) {
             const muscle = pointMuscles[c];
 
             if (!this.frozen && muscle.restLength > 1) {
-                // Contraction visualization: contracted = thick+opaque, extended = thin+transparent
                 const ratio = muscle.cLength / muscle.restLength;
                 const ct = Math.max(0, Math.min(1, (1.3 - ratio) / 0.6));
                 ctx.lineWidth = baseWidth + ct * 4;
@@ -441,11 +570,132 @@ export default class VerletBody {
             ctx.beginPath();
             ctx.moveTo(muscle.p1.x, muscle.p1.y);
             ctx.lineTo(muscle.p2.x, muscle.p2.y);
-            ctx.closePath();
             ctx.stroke();
         }
         ctx.globalAlpha = 1.0;
 
+        // Joint dots (small filled, not debug circles) — skip at speed>20
+        if (speed <= 20) {
+            const dotAlpha = this.frozen ? 0.2 : 0.6;
+            ctx.fillStyle = this.frozen
+                ? `rgba(100,100,100,${dotAlpha})`
+                : `hsla(${hue},60%,50%,${dotAlpha})`;
+            for (let p = 0; p < pointMass.length; p++) {
+                const point = pointMass[p];
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // Eyes (skip at high speed)
+        if (speed <= 50 && pointMass.length >= 2) {
+            this._renderEyes(ctx);
+        }
+
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'miter';
         ctx.lineWidth = 1;
+    }
+
+    _renderEyes(ctx) {
+        const pts = this.pointMass;
+        const com = this.getCOM();
+
+        // Update facing direction from COM movement
+        const dx = com.x - this._prevComX;
+        const dy = com.y - this._prevComY;
+        this._prevComX = com.x;
+        this._prevComY = com.y;
+
+        const moveMag = Math.sqrt(dx * dx + dy * dy);
+        if (moveMag > 0.1) {
+            const nx = dx / moveMag;
+            const ny = dy / moveMag;
+            // Exponential moving average for smooth direction
+            this._faceDirX = this._faceDirX * 0.9 + nx * 0.1;
+            this._faceDirY = this._faceDirY * 0.9 + ny * 0.1;
+            // Renormalize
+            const len = Math.sqrt(this._faceDirX * this._faceDirX + this._faceDirY * this._faceDirY);
+            if (len > 0.01) {
+                this._faceDirX /= len;
+                this._faceDirY /= len;
+            }
+        }
+
+        const fdx = this._faceDirX;
+        const fdy = this._faceDirY;
+
+        // Find "head" point: highest dot-product with facing direction, biased upward
+        let headIdx = 0;
+        let bestScore = -Infinity;
+        for (let i = 0; i < pts.length; i++) {
+            const relX = pts[i].x - com.x;
+            const relY = pts[i].y - com.y;
+            // Dot with facing + upward bias (negative Y = up in canvas)
+            const score = relX * fdx + relY * fdy - relY * 0.5;
+            if (score > bestScore) {
+                bestScore = score;
+                headIdx = i;
+            }
+        }
+
+        const head = pts[headIdx];
+
+        // Eye sizing based on body dimensions
+        const genome = this.genome;
+        const bodyScale = genome ? Math.sqrt(genome.bodyWidth * genome.bodyHeight) / 80 : 1;
+        const eyeRadius = Math.max(1.5, Math.min(4, 2.5 * bodyScale));
+
+        // Perpendicular to facing direction (for eye spread)
+        const perpX = -fdy;
+        const perpY = fdx;
+        const spread = eyeRadius * 1.8;
+
+        // Eye positions: offset from head point slightly along facing direction
+        const eyeOffsetForward = eyeRadius * 0.5;
+        const baseX = head.x + fdx * eyeOffsetForward;
+        const baseY = head.y + fdy * eyeOffsetForward;
+
+        const leftEyeX = baseX + perpX * spread;
+        const leftEyeY = baseY + perpY * spread;
+        const rightEyeX = baseX - perpX * spread;
+        const rightEyeY = baseY - perpY * spread;
+
+        // Pupil offset (looking in facing direction)
+        const pupilOff = eyeRadius * 0.3;
+        const pupilR = eyeRadius * 0.5;
+
+        if (this.frozen) {
+            // X marks for frozen creatures
+            ctx.strokeStyle = 'rgba(150,150,150,0.4)';
+            ctx.lineWidth = 1;
+            const s = eyeRadius * 0.7;
+            for (const [ex, ey] of [[leftEyeX, leftEyeY], [rightEyeX, rightEyeY]]) {
+                ctx.beginPath();
+                ctx.moveTo(ex - s, ey - s);
+                ctx.lineTo(ex + s, ey + s);
+                ctx.moveTo(ex + s, ey - s);
+                ctx.lineTo(ex - s, ey + s);
+                ctx.stroke();
+            }
+        } else {
+            // Sclera (white)
+            const scleraColor = this.isLeader ? 'rgba(255,255,230,0.95)' : 'rgba(255,255,255,0.95)';
+            const r = this.isLeader ? eyeRadius * 1.15 : eyeRadius;
+            ctx.fillStyle = scleraColor;
+            for (const [ex, ey] of [[leftEyeX, leftEyeY], [rightEyeX, rightEyeY]]) {
+                ctx.beginPath();
+                ctx.arc(ex, ey, r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            // Pupils (black)
+            ctx.fillStyle = '#000';
+            for (const [ex, ey] of [[leftEyeX, leftEyeY], [rightEyeX, rightEyeY]]) {
+                ctx.beginPath();
+                ctx.arc(ex + fdx * pupilOff, ey + fdy * pupilOff, pupilR, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
     }
 }

@@ -1,12 +1,6 @@
 import World from './World.js';
-
-// Deterministic hash for random-access noise values
-function hash(ix, seed) {
-    let h = (ix * 374761393 + seed * 668265263) | 0;
-    h = (h ^ (h >>> 13)) * 1274126177 | 0;
-    h ^= (h >>> 16);
-    return (h >>> 0) / 4294967296;
-}
+import Environment from './Environment.js';
+import { hash } from '../utils/hash.js';
 
 function noise(x, wavelength, seed) {
     const ix = Math.floor(x / wavelength);
@@ -196,7 +190,7 @@ export default class Terrain {
     }
 
     render() {
-        const ctx = World.ctx;
+        const ctx = World.gctx;
         const camX = World.cameraX;
         const camY = World.cameraY;
         const viewWidth = World.bounds.width;
@@ -208,23 +202,188 @@ export default class Terrain {
         const endIdx = Math.ceil((camX + viewWidth) / segWidth) + 1;
         const bottomY = camY + viewHeight;
 
-        // Draw terrain fill
+        // Find min terrain Y in visible range for gradient top
+        let minY = bottomY;
+        const heights = [];
+        for (let i = startIdx; i <= endIdx; i++) {
+            const h = this._heightAtSegment(i);
+            heights.push(h);
+            if (h < minY) minY = h;
+        }
+
+        // Build terrain path
         const x0 = startIdx * segWidth;
         ctx.beginPath();
-        ctx.moveTo(x0, this._heightAtSegment(startIdx));
-        for (let i = startIdx + 1; i <= endIdx; i++) {
-            ctx.lineTo(i * segWidth, this._heightAtSegment(i));
+        ctx.moveTo(x0, heights[0]);
+        for (let i = 1; i < heights.length; i++) {
+            ctx.lineTo((startIdx + i) * segWidth, heights[i]);
         }
         const xEnd = endIdx * segWidth;
         ctx.lineTo(xEnd, bottomY);
         ctx.lineTo(x0, bottomY);
         ctx.closePath();
 
-        ctx.fillStyle = 'rgba(139, 90, 43, 0.4)';
+        // Gradient fill: grass green → olive → brown → dark earth
+        const grad = ctx.createLinearGradient(0, minY - 10, 0, bottomY);
+        grad.addColorStop(0, 'rgb(60,120,40)');
+        grad.addColorStop(0.15, 'rgb(70,110,35)');
+        grad.addColorStop(0.4, 'rgb(100,80,30)');
+        grad.addColorStop(0.7, 'rgb(70,50,20)');
+        grad.addColorStop(1.0, 'rgb(35,25,10)');
+        ctx.fillStyle = grad;
         ctx.fill();
-        ctx.strokeStyle = '#8B5A2B';
-        ctx.lineWidth = 2;
+
+        // Day/night tint overlay
+        const envColors = Environment.getColors();
+        if (envColors.terrainTint) {
+            ctx.fillStyle = envColors.terrainTint;
+            ctx.fill();
+        }
+
+        // Soft 3-layer terrain edge
+        // Layer 1: Outer glow
+        ctx.beginPath();
+        ctx.moveTo(x0, heights[0]);
+        for (let i = 1; i < heights.length; i++) {
+            ctx.lineTo((startIdx + i) * segWidth, heights[i]);
+        }
+        ctx.strokeStyle = 'rgba(40,90,25,0.25)';
+        ctx.lineWidth = 5;
         ctx.stroke();
 
+        // Layer 2: Definition
+        ctx.beginPath();
+        ctx.moveTo(x0, heights[0]);
+        for (let i = 1; i < heights.length; i++) {
+            ctx.lineTo((startIdx + i) * segWidth, heights[i]);
+        }
+        ctx.strokeStyle = 'rgba(70,140,40,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Layer 3: Highlight
+        ctx.beginPath();
+        ctx.moveTo(x0, heights[0]);
+        for (let i = 1; i < heights.length; i++) {
+            ctx.lineTo((startIdx + i) * segWidth, heights[i]);
+        }
+        ctx.strokeStyle = 'rgba(120,180,60,0.15)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Grass tufts along terrain surface
+        const spd = World.speedMultiplier || 1;
+        this._renderGrassTufts(ctx, startIdx, endIdx, heights, spd);
+    }
+
+    renderInViewport(ctx, camX, camY, viewW, viewH, offsetX, offsetY) {
+        const segWidth = this.segmentWidth;
+
+        // Visible segment range for this viewport
+        const startIdx = Math.floor(camX / segWidth) - 1;
+        const endIdx = Math.ceil((camX + viewW) / segWidth) + 1;
+        const bottomY = camY + viewH;
+
+        // Find min terrain Y in visible range for gradient top
+        let minY = bottomY;
+        const heights = [];
+        for (let i = startIdx; i <= endIdx; i++) {
+            const h = this._heightAtSegment(i);
+            heights.push(h);
+            if (h < minY) minY = h;
+        }
+
+        // Transform: offset for cell position, then subtract camera
+        ctx.save();
+        ctx.translate(offsetX - camX, offsetY - camY);
+
+        // Build terrain path
+        const x0 = startIdx * segWidth;
+        ctx.beginPath();
+        ctx.moveTo(x0, heights[0]);
+        for (let i = 1; i < heights.length; i++) {
+            ctx.lineTo((startIdx + i) * segWidth, heights[i]);
+        }
+        const xEnd = endIdx * segWidth;
+        ctx.lineTo(xEnd, bottomY);
+        ctx.lineTo(x0, bottomY);
+        ctx.closePath();
+
+        // Gradient fill
+        const grad = ctx.createLinearGradient(0, minY - 10, 0, bottomY);
+        grad.addColorStop(0, 'rgb(60,120,40)');
+        grad.addColorStop(0.15, 'rgb(70,110,35)');
+        grad.addColorStop(0.4, 'rgb(100,80,30)');
+        grad.addColorStop(0.7, 'rgb(70,50,20)');
+        grad.addColorStop(1.0, 'rgb(35,25,10)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Day/night tint overlay
+        const envColors = Environment.getColors();
+        if (envColors.terrainTint) {
+            ctx.fillStyle = envColors.terrainTint;
+            ctx.fill();
+        }
+
+        // Terrain edge stroke
+        ctx.beginPath();
+        ctx.moveTo(x0, heights[0]);
+        for (let i = 1; i < heights.length; i++) {
+            ctx.lineTo((startIdx + i) * segWidth, heights[i]);
+        }
+        ctx.strokeStyle = 'rgba(70,140,40,0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    _renderGrassTufts(ctx, startIdx, endIdx, heights, speed) {
+        if (speed > 20) return;
+
+        const segWidth = this.segmentWidth;
+
+        // Color batches: 4 green shade variants
+        const grassColors = [
+            'rgba(50,130,30,0.6)',
+            'rgba(40,110,25,0.55)',
+            'rgba(65,145,40,0.5)',
+            'rgba(55,120,35,0.55)'
+        ];
+
+        // Pre-compute tuft data for color batching
+        const batches = [[], [], [], []];
+        for (let i = 0; i < heights.length - 1; i++) {
+            const ix = startIdx + i;
+            const bx = ix * segWidth;
+            const by = heights[i];
+            const count = 2 + Math.floor(hash(ix, this.seed * 97 + 7) * 3);
+            for (let j = 0; j < count; j++) {
+                const h1 = hash(ix * 10 + j, this.seed * 53 + 13);
+                const h2 = hash(ix * 10 + j + 100, this.seed * 53 + 13);
+                const h3 = hash(ix * 10 + j + 200, this.seed * 53 + 13);
+                const tx = bx + h1 * segWidth;
+                const t = h1;
+                const ty = by + (heights[i + 1] - by) * t;
+                const colorIdx = Math.floor(h3 * 4) % 4;
+                batches[colorIdx].push({ tx, ty, h2, lean: (h1 - 0.5) * 2 });
+            }
+        }
+
+        // Pixel-friendly: simple 1-2px vertical lines
+        ctx.lineWidth = 1;
+        for (let ci = 0; ci < 4; ci++) {
+            ctx.strokeStyle = grassColors[ci];
+            ctx.beginPath();
+            const batch = batches[ci];
+            for (let b = 0; b < batch.length; b++) {
+                const g = batch[b];
+                const grassH = 3 + g.h2 * 5;
+                ctx.moveTo(g.tx, g.ty);
+                ctx.lineTo(g.tx + g.lean, g.ty - grassH);
+            }
+            ctx.stroke();
+        }
     }
 }
